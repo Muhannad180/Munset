@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:test1/test_screens/start_screen.dart';
 import 'style.dart';
 
 class WelcomePage extends StatelessWidget {
@@ -14,17 +15,26 @@ class WelcomePage extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('مرحباً', style: AppStyle.heading, textAlign: TextAlign.center),
+                Text(
+                  'مرحباً',
+                  style: AppStyle.heading,
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 20),
                 Text(
-                  'أنا منصت إلى جميع أفكارك وسأكون بجانبك طوال اليوم...',
+                  'أنا منصت إلى جميع ما ستخبرني به وسأكون بجانبك طوال اليوم...',
                   style: AppStyle.body,
                   textAlign: TextAlign.center,
                   textDirection: TextDirection.rtl,
                 ),
                 const SizedBox(height: 40),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => StartScreen()),
+                    );
+                  },
                   child: Text('ابدأ', style: AppStyle.button),
                   style: AppStyle.buttonStyle,
                 ),
