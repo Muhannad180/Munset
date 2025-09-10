@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:test1/test_screens/test_screen.dart';
-import 'package:test1/nav_pages/home.dart';
+import 'package:test1/login/signin_screen.dart';
 import '/style.dart';
 
 class StartScreen extends StatelessWidget {
@@ -110,7 +110,7 @@ class StartScreen extends StatelessWidget {
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => HomePage()),
+                        MaterialPageRoute(builder: (context) => LogInScreen()),
                       );
                     },
                     label: const Text('تخطي'),

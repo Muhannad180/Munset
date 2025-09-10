@@ -15,10 +15,9 @@ class TestScreen extends StatefulWidget {
 
 class _TestScreen extends State<TestScreen> {
   var currentQuestionIndex = 0;
-  var totalScore = 0; // هنا بنجمع النقاط
+  var totalScore = 0;
 
   void answerQuestion(String selectedAnswer) {
-    // نحول الإجابة إلى رقم
     int answerScore = 0;
     if (selectedAnswer == 'أبدًا') {
       answerScore = 0;
@@ -36,7 +35,6 @@ class _TestScreen extends State<TestScreen> {
       if (currentQuestionIndex < questions.length - 1) {
         currentQuestionIndex++;
       } else {
-        // لما يخلص الاسئلة يروح على النتائج
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(

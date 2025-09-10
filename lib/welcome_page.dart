@@ -13,8 +13,11 @@ class WelcomePage extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                const SizedBox(height: 80),
+                Image.asset('assets/images/munset_logo.png'),
+                const SizedBox(height: 100),
+
                 Text(
                   'مرحباً',
                   style: AppStyle.heading,
