@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:test1/login/theme/theme.dart';
 import 'package:test1/login/widgets/custom_scaffold.dart';
 import 'package:test1/login/signup_screen.dart';
+import 'package:test1/new_part/forgot_password_screen.dart';
 import 'package:test1/nav_pages/home.dart';
 import 'package:test1/main_navigation.dart';
 import 'package:test1/style.dart';
@@ -151,8 +152,15 @@ class _LogInState extends State<LogInScreen> {
                         ),
 
                         const SizedBox(height: 25),
-
                         GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ForgotPasswordScreen(),
+                              ),
+                            );
+                          },
                           child: Text(
                             'نسيت كلمة المرور؟',
                             style: TextStyle(

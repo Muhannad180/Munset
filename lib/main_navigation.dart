@@ -17,7 +17,7 @@ class _MainNavigationState extends State<MainNavigation> {
     HomePage(),
     Sessions(),
     Journal(),
-    Tasks(),
+    TasksScreen(),
     Profile(),
   ];
 
