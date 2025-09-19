@@ -26,7 +26,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         actions: const [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text( // Replace with your logo
+            child: Text(
+              // Replace with your logo
               'منصت',
               style: TextStyle(
                 fontFamily: 'Tajawal',
@@ -45,7 +46,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             const SizedBox(height: 60),
             const Text(
               'إعادة تعيين كلمة المرور',
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF004D40)),
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF004D40),
+              ),
             ),
             const SizedBox(height: 60),
             TextField(
@@ -57,7 +62,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 filled: true,
                 fillColor: Colors.white,
                 suffixIcon: IconButton(
-                  icon: Icon(_isObscure1 ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                  icon: Icon(
+                    _isObscure1 ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.grey,
+                  ),
                   onPressed: () => setState(() => _isObscure1 = !_isObscure1),
                 ),
                 border: OutlineInputBorder(
@@ -76,7 +84,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 filled: true,
                 fillColor: Colors.white,
                 suffixIcon: IconButton(
-                  icon: Icon(_isObscure2 ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                  icon: Icon(
+                    _isObscure2 ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.grey,
+                  ),
                   onPressed: () => setState(() => _isObscure2 = !_isObscure2),
                 ),
                 border: OutlineInputBorder(
