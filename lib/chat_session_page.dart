@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
@@ -51,7 +50,7 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
           String response =
               event.content?.parts?.fold("", (previous, current) {
                 if (current is TextPart) {
-                  return "$previous ${current.text}";
+                  return "$previous${current.text}";
                 }
                 return previous;
               }) ??
@@ -64,7 +63,7 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
           String response =
               event.content?.parts?.fold("", (previous, current) {
                 if (current is TextPart) {
-                  return "$previous ${current.text}";
+                  return "$previous${current.text}";
                 }
                 return previous;
               }) ??
