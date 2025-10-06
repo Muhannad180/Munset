@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:test1/login/signin_screen.dart';
 import 'package:test1/login/theme/theme.dart';
 import 'package:test1/login/widgets/custom_scaffold.dart';
 import 'package:test1/style.dart';
+import 'package:test1/login/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -13,7 +15,17 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   final _formSignupKey = GlobalKey<FormState>();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final AuthService authService = AuthService();
   bool agreePersonalData = true;
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,12 +38,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
             Expanded(
               flex: 7,
               child: Container(
-                padding: const EdgeInsets.fromLTRB(25.0, 50.0, 25.0, 20.0),
+                padding: const EdgeInsets.fromLTRB(25, 50, 25, 20),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(40.0),
-                    topRight: Radius.circular(40.0),
+                    topLeft: Radius.circular(40),
+                    topRight: Radius.circular(40),
                   ),
                 ),
                 child: SingleChildScrollView(
@@ -40,7 +52,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
+                        const Text(
                           'إنشاء حساب جديد',
                           style: TextStyle(
                             fontSize: 28,
@@ -48,8 +60,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             color: Colors.black,
                           ),
                         ),
-                        const SizedBox(height: 40.0),
-
+                        const SizedBox(height: 40),
                         TextFormField(
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -60,19 +71,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           decoration: InputDecoration(
                             label: const Text('الاسم كامل'),
                             hintText: 'أدخل الاسم الكامل',
-                            hintStyle: const TextStyle(color: Colors.black26),
                             border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
                               borderSide: const BorderSide(
                                 color: Colors.black12,
                               ),
-                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                         ),
-
-                        const SizedBox(height: 25.0),
-
+                        const SizedBox(height: 25),
                         TextFormField(
+                          controller: emailController,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'الرجاء إدخال البريد الإلكتروني';
@@ -82,19 +91,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           decoration: InputDecoration(
                             label: const Text('البريد الإلكتروني'),
                             hintText: 'أدخل البريد الإلكتروني',
-                            hintStyle: const TextStyle(color: Colors.black26),
                             border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
                               borderSide: const BorderSide(
                                 color: Colors.black12,
                               ),
-                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                         ),
-
-                        const SizedBox(height: 25.0),
-
+                        const SizedBox(height: 25),
                         TextFormField(
+                          controller: passwordController,
                           obscureText: true,
                           obscuringCharacter: '•',
                           validator: (value) {
@@ -104,20 +111,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             return null;
                           },
                           decoration: InputDecoration(
+                            suffixIcon: IconButton(
+                              onPressed: () {},
+                              icon: const Icon(Icons.visibility),
+                            ),
                             label: const Text('كلمة المرور'),
                             hintText: 'أدخل كلمة المرور',
-                            hintStyle: const TextStyle(color: Colors.black26),
                             border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
                               borderSide: const BorderSide(
                                 color: Colors.black12,
                               ),
-                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                         ),
-
-                        const SizedBox(height: 25.0),
-
+                        const SizedBox(height: 25),
                         Row(
                           children: [
                             Checkbox(
@@ -142,37 +150,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             ),
                           ],
                         ),
-
-                        const SizedBox(height: 25.0),
-
+                        const SizedBox(height: 25),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () {
-                              if (_formSignupKey.currentState!.validate() &&
-                                  agreePersonalData) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('تم إنشاء الحساب بنجاح'),
-                                  ),
+                            onPressed: () async {
+                              if (_formSignupKey.currentState!.validate()) {
+                                bool success = await authService.signUp(
+                                  emailController.text,
+                                  passwordController.text,
                                 );
-                              } else if (!agreePersonalData) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'الرجاء الموافقة على معالجة البيانات الشخصية',
+
+                                if (success) {
+                                  context.go('/home');
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Sign Up failed!'),
                                     ),
-                                  ),
-                                );
+                                  );
+                                }
                               }
                             },
                             child: Text('إنشاء حساب', style: AppStyle.button),
                             style: AppStyle.buttonStyle,
                           ),
                         ),
-
-                        const SizedBox(height: 30.0),
-
+                        const SizedBox(height: 30),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -185,7 +189,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (e) => const LogInScreen(),
+                                    builder: (e) => const SignInScreen(),
                                   ),
                                 );
                               },

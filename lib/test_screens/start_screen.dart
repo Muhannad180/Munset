@@ -110,7 +110,7 @@ class StartScreen extends StatelessWidget {
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => LogInScreen()),
+                        MaterialPageRoute(builder: (context) => SignInScreen()),
                       );
                     },
                     label: const Text('تخطي'),
