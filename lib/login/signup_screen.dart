@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:test1/login/signin_screen.dart';
 import 'package:test1/login/theme/theme.dart';
 import 'package:test1/login/widgets/custom_scaffold.dart';
+import 'package:test1/main_navigation.dart';
 import 'package:test1/style.dart';
 import 'package:test1/login/auth_service.dart';
+
+// Register page
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -14,11 +16,45 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  final _formSignupKey = GlobalKey<FormState>();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final AuthService authService = AuthService();
+  // get auth service
+  final authService = AuthService();
+
+  // text controllers
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
   bool agreePersonalData = true;
+
+  // sign up buttom pressed
+  void signUp() async {
+    // prepare data
+    final email = emailController.text;
+    final password = passwordController.text;
+    final confirmPassword = confirmPasswordController.text;
+
+    // check that passwords match
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("كلمة المرور غير متطابقة")));
+      return;
+    }
+
+    // attemt sign up
+    try {
+      await authService.signUpWithEmailPassword(email, password);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => MainNavigation()),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("حدث خطأ : $e")));
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -48,7 +84,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
                 child: SingleChildScrollView(
                   child: Form(
-                    key: _formSignupKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -106,7 +141,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           obscuringCharacter: '•',
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'الرجاء إدخال كلمة المرور';
+                              return 'إدخال كلمة المرور';
                             }
                             return null;
                           },
@@ -125,6 +160,34 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             ),
                           ),
                         ),
+
+                        const SizedBox(height: 25),
+                        TextFormField(
+                          controller: confirmPasswordController,
+                          obscureText: true,
+                          obscuringCharacter: '•',
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'تكرار إدخال كلمة المرور';
+                            }
+                            return null;
+                          },
+                          decoration: InputDecoration(
+                            suffixIcon: IconButton(
+                              onPressed: () {},
+                              icon: const Icon(Icons.visibility),
+                            ),
+                            label: const Text('التحقق من كلمة المرور'),
+                            hintText: 'تكرار أدخل كلمة المرور',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: Colors.black12,
+                              ),
+                            ),
+                          ),
+                        ),
+
                         const SizedBox(height: 25),
                         Row(
                           children: [
@@ -154,24 +217,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () async {
-                              if (_formSignupKey.currentState!.validate()) {
-                                bool success = await authService.signUp(
-                                  emailController.text,
-                                  passwordController.text,
-                                );
-
-                                if (success) {
-                                  context.go('/home');
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Sign Up failed!'),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
+                            onPressed: signUp,
                             child: Text('إنشاء حساب', style: AppStyle.button),
                             style: AppStyle.buttonStyle,
                           ),

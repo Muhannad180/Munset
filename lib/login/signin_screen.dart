@@ -5,30 +5,66 @@ import 'package:test1/login/signup_screen.dart';
 import 'package:test1/login/forget_password/forgot_password_screen.dart';
 import 'package:test1/main_navigation.dart';
 import 'package:test1/style.dart';
+import 'package:test1/login/auth_service.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
   @override
-  State<SignInScreen> createState() => _LogInState();
+  State<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _LogInState extends State<SignInScreen> {
-  final _formSignInKey = GlobalKey<FormState>();
+class _SignInScreenState extends State<SignInScreen> {
+  // get auth service
+  final authService = AuthService();
+
+  // text controllers
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  // login puttom pressed
+  void login() async {
+    // preapare data
+    final email = emailController.text;
+    final password = passwordController.text;
+
+    // attemp login
+    try {
+      await authService.signInWithEmailPassword(email, password);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => MainNavigation()),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("البريد الإلكتروني او كلمة المرور غير صحيحة !!"),
+          ),
+        );
+      }
+    }
+  }
+
   bool rememberPassword = true;
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      // wall paper
       child: CustomScaffold(
         child: Column(
           children: [
             const Expanded(flex: 1, child: SizedBox(height: 10)),
             Expanded(
               flex: 7,
-
               child: Container(
                 padding: const EdgeInsets.fromLTRB(25, 50, 25, 20),
                 decoration: const BoxDecoration(
@@ -40,11 +76,10 @@ class _LogInState extends State<SignInScreen> {
                 ),
                 child: SingleChildScrollView(
                   child: Form(
-                    key: _formSignInKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
+                        const Text(
                           'تسجيل الدخول',
                           style: TextStyle(
                             fontSize: 28,
@@ -52,10 +87,9 @@ class _LogInState extends State<SignInScreen> {
                             color: Colors.black,
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
                         TextFormField(
+                          controller: emailController,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'الرجاء إدخال البريد الإلكتروني';
@@ -67,22 +101,16 @@ class _LogInState extends State<SignInScreen> {
                             hintText: 'أدخل البريد الإلكتروني',
                             hintStyle: const TextStyle(color: Colors.black26),
                             border: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: Colors.black12,
-                              ),
                               borderRadius: BorderRadius.circular(10),
-                            ),
-                            enabledBorder: OutlineInputBorder(
                               borderSide: const BorderSide(
                                 color: Colors.black12,
                               ),
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
                         TextFormField(
+                          controller: passwordController,
                           obscureText: true,
                           obscuringCharacter: '•',
                           validator: (value) {
@@ -96,16 +124,14 @@ class _LogInState extends State<SignInScreen> {
                             hintText: 'أدخل كلمة المرور',
                             hintStyle: const TextStyle(color: Colors.black26),
                             border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
                               borderSide: const BorderSide(
                                 color: Colors.black12,
                               ),
-                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 25),
-
                         Row(
                           children: [
                             Checkbox(
@@ -123,33 +149,15 @@ class _LogInState extends State<SignInScreen> {
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 25),
-
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () {
-                              if (_formSignInKey.currentState!.validate()) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('تم تسجيل الدخول بنجاح'),
-                                  ),
-                                );
-                              }
-
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => MainNavigation(),
-                                ),
-                              );
-                            },
+                            onPressed: login,
                             child: Text('تسجيل الدخول', style: AppStyle.button),
                             style: AppStyle.buttonStyle,
                           ),
                         ),
-
                         const SizedBox(height: 25),
                         GestureDetector(
                           onTap: () {
@@ -168,9 +176,7 @@ class _LogInState extends State<SignInScreen> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 100),
-
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -178,7 +184,6 @@ class _LogInState extends State<SignInScreen> {
                               'ليس لديك حساب؟ ',
                               style: TextStyle(color: Colors.black45),
                             ),
-
                             GestureDetector(
                               onTap: () {
                                 Navigator.pushReplacement(
