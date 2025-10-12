@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:test1/test_screens/start_screen.dart';
+import 'package:test1/login/signin_screen.dart';
 import 'style.dart';
 
 class WelcomePage extends StatelessWidget {
@@ -35,7 +35,7 @@ class WelcomePage extends StatelessWidget {
                   onPressed: () {
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (context) => StartScreen()),
+                      MaterialPageRoute(builder: (context) => SignInScreen()),
                     );
                   },
                   child: Text('ابدأ', style: AppStyle.button),
