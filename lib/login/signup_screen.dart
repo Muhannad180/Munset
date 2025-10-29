@@ -11,17 +11,40 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   final authService = AuthService();
+  final firstNameController = TextEditingController();
+  final lastNameController = TextEditingController();
+
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+
   bool agreePersonalData = true;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
 
+  String? selectedAge;
+  String? selectedGender;
+  final List<String> ages = [for (int i = 12; i <= 60; i++) i.toString()];
+
   void signUp() async {
-    final email = emailController.text;
+    final firstName = firstNameController.text.trim();
+    final lastName = lastNameController.text.trim();
+    final email = emailController.text.trim();
     final password = passwordController.text;
     final confirmPassword = confirmPasswordController.text;
+
+    // التحقق من جميع الحقول
+    if (firstName.isEmpty ||
+        lastName.isEmpty ||
+        selectedAge == null ||
+        selectedGender == null ||
+        email.isEmpty ||
+        password.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("يرجى ملء جميع الحقول")));
+      return;
+    }
 
     if (password != confirmPassword) {
       ScaffoldMessenger.of(
@@ -31,22 +54,50 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     try {
-      await authService.signUpWithEmailPassword(email, password);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => SignInScreen()),
+      // إنشاء حساب في Auth
+      final response = await authService.signUpWithEmailPassword(
+        email,
+        password,
       );
+
+      // التحقق من نجاح إنشاء الحساب والحصول على user id
+      if (response.user != null) {
+        final userId = response.user!.id;
+
+        // حفظ بيانات المستخدم في جدول user
+        await authService.saveUserData(
+          userId: userId,
+          firstName: firstName,
+          lastName: lastName,
+          age: int.parse(selectedAge!),
+          gender: selectedGender!,
+          email: email,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("تم إنشاء الحساب بنجاح")),
+          );
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const SignInScreen()),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("يرجى ملء جميع الحقول")));
+        ).showSnackBar(SnackBar(content: Text("حدث خطأ: ${e.toString()}")));
       }
     }
   }
 
   @override
   void dispose() {
+    firstNameController.dispose();
+    lastNameController.dispose();
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
@@ -55,13 +106,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const double topGradientHeight = 260;
+    const double topGradientHeight = 200;
     const double wavesHeight = 160;
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+        backgroundColor: Color(0xFFF5F5F5),
         body: Column(
           children: [
             SizedBox(
@@ -74,10 +125,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                   Center(
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 40),
+                      padding: const EdgeInsets.only(top: 20),
                       child: Text(
                         'مُنصت',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 36,
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -88,12 +139,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ],
               ),
             ),
-
             Expanded(
               child: Container(
                 width: double.infinity,
                 decoration: const BoxDecoration(
-                  color: Colors.white,
+                  color: Color(0xFFF5F5F5),
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(60),
                     topRight: Radius.circular(60),
@@ -114,9 +164,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                       ),
                     ),
-
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 40, 24, 20),
+                      padding: const EdgeInsets.fromLTRB(24, 10, 24, 20),
                       child: SingleChildScrollView(
                         child: Column(
                           children: [
@@ -131,20 +180,144 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             ),
                             const SizedBox(height: 24),
 
-                            // الاسم الكامل
-                            TextField(
-                              decoration: InputDecoration(
-                                labelText: 'الاسم كامل',
-                                hintText: 'أدخل الاسم الكامل',
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                            // ====== الاسم ======
+                            const Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                'الاسم',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 8),
+
+                            // الاسم الأول والاسم الأخير جنب بعض
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: firstNameController,
+                                    decoration: InputDecoration(
+                                      labelText: 'الاسم الأول',
+                                      hintText: 'أدخل اسمك الأول',
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 14,
+                                          ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: TextField(
+                                    controller: lastNameController,
+                                    decoration: InputDecoration(
+                                      labelText: 'الاسم الأخير',
+                                      hintText: 'أدخل اسمك الأخير',
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 14,
+                                          ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // ====== العمر والجنس ======
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    decoration: InputDecoration(
+                                      labelText: 'العمر',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 14,
+                                          ),
+                                    ),
+                                    value: selectedAge,
+                                    items: ages
+                                        .map(
+                                          (age) => DropdownMenuItem(
+                                            value: age,
+                                            child: Text(age),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        selectedAge = value;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'الجنس',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: RadioListTile<String>(
+                                              title: const Text('ذكر'),
+                                              value: 'ذكر',
+                                              groupValue: selectedGender,
+                                              contentPadding: EdgeInsets.zero,
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  selectedGender = value;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: RadioListTile<String>(
+                                              title: const Text('أنثى'),
+                                              value: 'أنثى',
+                                              groupValue: selectedGender,
+                                              contentPadding: EdgeInsets.zero,
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  selectedGender = value;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+
                             const SizedBox(height: 16),
 
                             // البريد الإلكتروني
@@ -242,7 +415,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 ),
                                 const Text(
                                   'أوافق على معالجة ',
-                                  style: TextStyle(color: Colors.black54),
+                                  style: TextStyle(color: Colors.black),
                                 ),
                                 const Text(
                                   'البيانات الشخصية',
@@ -285,7 +458,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               children: [
                                 const Text(
                                   'لديك حساب بالفعل؟ ',
-                                  style: TextStyle(color: Colors.black54),
+                                  style: TextStyle(color: Colors.black),
                                 ),
                                 GestureDetector(
                                   onTap: () {
@@ -324,7 +497,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 }
 
-/* ======= استخدمت نفس الـ Painters من صفحة الدخول للتماشي مع الشكل ======= */
+/* ======= Painters للتماثل مع صفحة الدخول ======= */
 
 class _TopGradientPainter extends CustomPainter {
   @override
@@ -343,11 +516,7 @@ class _TopGradientPainter extends CustomPainter {
     final Gradient gradient = LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: const [
-        Color(0xFF9EEBE4), // فاتح
-        Color(0xFF5DD5CA), // متوسط
-        Color(0xFF26A69A), // غامق
-      ],
+      colors: const [Color(0xFF9EEBE4), Color(0xFF5DD5CA), Color(0xFF26A69A)],
       stops: const [0.0, 0.5, 1.0],
     );
 

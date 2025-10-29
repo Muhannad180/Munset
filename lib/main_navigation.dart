@@ -24,8 +24,15 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _pages),
-      bottomNavigationBar: _buildCustomBottomNavBar(),
+      body: Stack(
+        children: [
+          IndexedStack(index: _currentIndex, children: _pages),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: _buildCustomBottomNavBar(),
+          ),
+        ],
+      ),
     );
   }
 

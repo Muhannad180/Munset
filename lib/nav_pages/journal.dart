@@ -176,6 +176,7 @@ class _JournalState extends State<Journal> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),

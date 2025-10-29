@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:test1/login/forget_password/forgot_password_screen.dart';
 import 'package:test1/login/signup_screen.dart';
 import 'package:test1/main_navigation.dart';
 import 'package:test1/login/auth_service.dart';
@@ -53,7 +52,7 @@ class _SignInScreenState extends State<SignInScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+        backgroundColor: const Color(0xFFF5F5F5),
         body: Column(
           children: [
             // الجزء العلوي
@@ -67,7 +66,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                   Center(
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 40),
+                      padding: const EdgeInsets.only(top: 20),
                       child: Text(
                         'مُنصت',
                         style: TextStyle(
@@ -87,7 +86,7 @@ class _SignInScreenState extends State<SignInScreen> {
               child: Container(
                 width: double.infinity,
                 decoration: const BoxDecoration(
-                  color: Colors.white,
+                  color: Color(0xFFF5F5F5),
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(60),
                     topRight: Radius.circular(60),
@@ -214,8 +213,7 @@ class _SignInScreenState extends State<SignInScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        ForgotPasswordScreen(),
+                                    builder: (context) => MainNavigation(),
                                   ),
                                 );
                               },

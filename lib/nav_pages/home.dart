@@ -1,12 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'dart:io';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
+  _HomePageState createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  DateTime _selectedDate = DateTime.now();
+  String _locale = 'en'; // Default locale
+
+  @override
+  void initState() {
+    super.initState();
+    _setLocale();
+  }
+
+  void _setLocale() async {
+    try {
+      _locale = Platform.localeName;
+      await initializeDateFormatting(_locale, null);
+    } catch (e) {
+      _locale = 'ar'; // Fallback to Arabic if localeName is not supported
+      await initializeDateFormatting(_locale, null);
+    }
+    setState(() {});
+  }
+
+  void _onDaySelected(DateTime day) {
+    setState(() {
+      _selectedDate = day;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    var now = DateTime.now();
+    var currentMonth = DateFormat.MMMM(_locale).format(_selectedDate);
+    var daysInWeek = _getDaysInWeek(_selectedDate);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Home Page')),
+      appBar: AppBar(title: const Text('الصفحة الرئيسية')),
       body: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.all(16.0),
@@ -32,15 +70,37 @@ class HomePage extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(Icons.arrow_back_ios, size: 16),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedDate = DateTime(
+                                _selectedDate.year,
+                                _selectedDate.month - 1,
+                                1,
+                              );
+                            });
+                          },
+                          child: Icon(Icons.arrow_back_ios, size: 16),
+                        ),
                         Text(
-                          'فبراير',
+                          currentMonth,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        Icon(Icons.arrow_forward_ios, size: 16),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedDate = DateTime(
+                                _selectedDate.year,
+                                _selectedDate.month + 1,
+                                1,
+                              );
+                            });
+                          },
+                          child: Icon(Icons.arrow_forward_ios, size: 16),
+                        ),
                       ],
                     ),
                     SizedBox(height: 16),
@@ -48,13 +108,13 @@ class HomePage extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildDayColumn('السبت', '10'),
-                        _buildDayColumn('الجمعة', '11'),
-                        _buildDayColumn('الخميس', '12', isToday: true),
-                        _buildDayColumn('الأربعاء', '13'),
-                        _buildDayColumn('الثلاثاء', '14'),
-                        _buildDayColumn('الاثنين', '15'),
-                        _buildDayColumn('الأحد', '16'),
+                        _buildDayColumn(daysInWeek[0], now),
+                        _buildDayColumn(daysInWeek[1], now),
+                        _buildDayColumn(daysInWeek[2], now),
+                        _buildDayColumn(daysInWeek[3], now),
+                        _buildDayColumn(daysInWeek[4], now),
+                        _buildDayColumn(daysInWeek[5], now),
+                        _buildDayColumn(daysInWeek[6], now),
                       ],
                     ),
                   ],
@@ -273,6 +333,8 @@ class HomePage extends StatelessWidget {
                   ],
                 ),
               ),
+
+              const SizedBox(height: 100),
             ],
           ),
         ),
@@ -280,30 +342,53 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildDayColumn(String day, String date, {bool isToday = false}) {
-    return Column(
-      children: [
-        Text(day, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-        SizedBox(height: 8),
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: isToday ? Colors.blue : Colors.transparent,
-            shape: BoxShape.circle,
+  Widget _buildDayColumn(DateTime date, DateTime today) {
+    var isSelectedDay =
+        date.day == _selectedDate.day &&
+        date.month == _selectedDate.month &&
+        date.year == _selectedDate.year;
+
+    var isToday =
+        date.day == today.day &&
+        date.month == today.month &&
+        date.year == today.year;
+
+    // Dynamically get the Arabic day name from the date object
+    var dayName = DateFormat.E(_locale).format(date);
+
+    return GestureDetector(
+      onTap: () {
+        _onDaySelected(date);
+      },
+      child: Column(
+        children: [
+          Text(
+            dayName,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
-          child: Center(
-            child: Text(
-              date,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isToday ? Colors.white : Colors.black,
+          SizedBox(height: 8),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isSelectedDay
+                  ? Colors.blue
+                  : (isToday ? Colors.grey[300] : Colors.transparent),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                DateFormat.d(_locale).format(date),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isSelectedDay ? Colors.white : Colors.black,
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -340,5 +425,20 @@ class HomePage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  List<DateTime> _getDaysInWeek(DateTime date) {
+    List<DateTime> days = [];
+    var startOfWeek = _getStartOfWeek(date);
+    for (int i = 0; i < 7; i++) {
+      days.add(startOfWeek.add(Duration(days: i)));
+    }
+    return days;
+  }
+
+  DateTime _getStartOfWeek(DateTime date) {
+    var day = date.weekday;
+    var daysToSubtract = (day + 6) % 7;
+    return date.subtract(Duration(days: daysToSubtract));
   }
 }
