@@ -4,7 +4,7 @@ class TasksScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFC8E6C9), // Light green background
+      backgroundColor: const Color(0xFFF5F5F5), // Light green background
       body: SafeArea(
         child: Column(
           children: [
@@ -66,42 +66,14 @@ class TasksScreen extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.8),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: Icon(Icons.arrow_back_ios_new, color: Colors.black),
-              onPressed: () {
-                // Handle back button
-              },
-            ),
-          ),
           Text(
             'المهام', // Tasks
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
-            ),
-          ),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.8),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: Icon(Icons.more_vert, color: Colors.black),
-              onPressed: () {
-                // Handle more options
-              },
             ),
           ),
         ],
@@ -227,7 +199,6 @@ class TasksScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
             ],
           ),
         ],

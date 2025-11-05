@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/login/signin_screen.dart';
 import 'package:test1/login/auth_service.dart';
+import 'package:test1/main.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -13,6 +15,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final authService = AuthService();
   final firstNameController = TextEditingController();
   final lastNameController = TextEditingController();
+  final ageController = TextEditingController();
+  final genderController = TextEditingController();
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -42,7 +46,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         password.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("يرجى ملء جميع الحقول")));
+      ).showSnackBar(const SnackBar(content: Text("يرجى ملئ جميع الحقول")));
       return;
     }
 
@@ -65,14 +69,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
         final userId = response.user!.id;
 
         // حفظ بيانات المستخدم في جدول user
-        await authService.saveUserData(
-          userId: userId,
-          firstName: firstName,
-          lastName: lastName,
-          age: int.parse(selectedAge!),
-          gender: selectedGender!,
-          email: email,
-        );
+        await supabase.from('users').insert({
+          "id": userId,
+          "first_name": firstName,
+          "last_name": lastName,
+          "age": int.parse(selectedAge!),
+          "gender": selectedGender!,
+          "email": email,
+        });
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

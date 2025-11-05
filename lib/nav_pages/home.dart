@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'dart:io';
+import 'package:test1/main.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,11 +14,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   DateTime _selectedDate = DateTime.now();
   String _locale = 'en'; // Default locale
+  String firstName = '';
 
   @override
   void initState() {
     super.initState();
     _setLocale();
+    _loadUserData();
   }
 
   void _setLocale() async {
@@ -37,6 +40,33 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<void> _loadUserData() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) {
+      print('❌ No user logged in');
+      return;
+    }
+
+    print('👤 Logged in user id: ${user.id}');
+
+    final response = await supabase
+        .from('users')
+        .select()
+        .eq('id', user.id)
+        .maybeSingle();
+
+    print('📦 Supabase response: $response');
+
+    if (response == null) {
+      print('⚠️ No record found for this user in the "users" table');
+      return;
+    }
+
+    setState(() {
+      firstName = response['first_name'] ?? '';
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     var now = DateTime.now();
@@ -44,7 +74,19 @@ class _HomePageState extends State<HomePage> {
     var daysInWeek = _getDaysInWeek(_selectedDate);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('الصفحة الرئيسية')),
+      backgroundColor: const Color(0xFFF5F5F5),
+      appBar: AppBar(
+        automaticallyImplyLeading: false, // يخفي سهم رجوع, مانحتاجه
+        backgroundColor: const Color(0xFFF5F5F5),
+        title: Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            '👋 مرحبا $firstName',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+
       body: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.all(16.0),

@@ -75,7 +75,7 @@ class _MainNavigationState extends State<MainNavigation> {
       },
       child: Container(
         width: 60,
-        height: 60,
+        height: 40,
         decoration: BoxDecoration(
           color: isSelected
               ? Color(0xFF8FD3C7).withOpacity(0.3)

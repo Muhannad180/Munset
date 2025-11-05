@@ -7,9 +7,9 @@ class Sessions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF8FD3C7), // Light teal background
+      backgroundColor: const Color(0xFFF5F5F5), // Light teal background
       appBar: AppBar(
-        backgroundColor: Color(0xFF8FD3C7),
+        backgroundColor: const Color(0xFFF5F5F5),
         elevation: 0,
         title: Center(
           child: Text(

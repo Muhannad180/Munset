@@ -1,28 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:test1/login/auth_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/login/signin_screen.dart';
 
 class Profile extends StatelessWidget {
   final String? userEmail;
-
   const Profile({super.key, this.userEmail});
 
   @override
-  Widget build(BuildContext context) {
-    return ProfileScreen(userEmail: userEmail);
-  }
+  Widget build(BuildContext context) => ProfileScreen(userEmail: userEmail);
 }
 
 class ProfileScreen extends StatefulWidget {
   final String? userEmail;
-
   const ProfileScreen({super.key, this.userEmail});
 
   @override
-  _ProfileScreenState createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final supabase = Supabase.instance.client;
+
   String firstName = '';
   String lastName = '';
   int age = 0;
@@ -38,40 +36,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUserData() async {
     try {
-      final authService = AuthService();
-      final userId = authService.getCurrentUserId();
+      final user = supabase.auth.currentUser;
 
-      if (userId != null) {
-        final userData = await authService.getUserDataById(userId);
-
-        if (userData != null && mounted) {
-          setState(() {
-            firstName = userData['first_name'] ?? '';
-            lastName = userData['last_name'] ?? '';
-            age = userData['age'] ?? 0;
-            gender = userData['gender'] ?? '';
-            email = userData['email'] ?? '';
-            isLoading = false;
-          });
-        } else {
-          setState(() => isLoading = false);
-        }
-      } else {
+      if (user == null) {
+        _showError('لم يتم العثور على المستخدم الحالي');
         setState(() => isLoading = false);
+        return;
       }
-    } catch (e) {
-      print('خطأ في جلب البيانات: $e');
-      setState(() => isLoading = false);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('حدث خطأ في تحميل البيانات'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // 🔹 جلب بيانات المستخدم من جدول users حسب الـ email أو id
+      final response = await supabase
+          .from('users')
+          .select()
+          .eq('id', user.id)
+          .single();
+
+      if (!mounted) return;
+
+      setState(() {
+        firstName = response['first_name'] ?? '';
+        lastName = response['last_name'] ?? '';
+        age = (response['age'] ?? 0) as int;
+        gender = response['gender'] ?? '';
+        email = response['email'] ?? '';
+      });
+    } catch (e) {
+      debugPrint('❌ خطأ أثناء جلب البيانات: $e');
+      _showError('حدث خطأ أثناء تحميل بيانات المستخدم');
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+    );
+  }
+
+  Future<void> _logout() async {
+    await supabase.auth.signOut();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const SignInScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -90,7 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : SingleChildScrollView(
                 child: Column(
                   children: [
-                    // Header Gradient
+                    // 🟢 رأس الصفحة
                     SizedBox(
                       height: topGradientHeight,
                       child: Stack(
@@ -102,10 +113,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             painter: _TopGradientPainter(),
                           ),
-                          Center(
+                          const Center(
                             child: Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: const Text(
+                              padding: EdgeInsets.only(top: 2),
+                              child: Text(
                                 'مُنصت',
                                 style: TextStyle(
                                   fontSize: 36,
@@ -118,165 +129,144 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
-                    // Main Content with Waves
-                    SizedBox(
-                      width: double.infinity,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Positioned(
-                            top: -wavesHeight + 20,
-                            left: 0,
-                            right: 0,
-                            child: SizedBox(
-                              height: wavesHeight,
-                              child: CustomPaint(
-                                size: const Size(double.infinity, wavesHeight),
-                                painter: _WavesPainter(),
-                              ),
+
+                    // 🟢 محتوى الصفحة
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned(
+                          top: -wavesHeight + 20,
+                          left: 0,
+                          right: 0,
+                          child: SizedBox(
+                            height: wavesHeight,
+                            child: CustomPaint(
+                              size: const Size(double.infinity, wavesHeight),
+                              painter: _WavesPainter(),
                             ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24.0,
-                              vertical: 20.0,
-                            ),
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 10),
-                                const Text(
-                                  'ملفك الشخصي',
-                                  style: TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24.0,
+                            vertical: 20.0,
+                          ),
+                          child: Column(
+                            children: [
+                              const Text(
+                                'ملفك الشخصي',
+                                style: TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
                                 ),
-                                const SizedBox(height: 20),
-                                // Profile Picture
-                                Stack(
-                                  alignment: Alignment.bottomLeft,
-                                  children: [
-                                    const CircleAvatar(
-                                      radius: 50,
-                                      backgroundColor: Colors.grey,
-                                      backgroundImage: NetworkImage(
-                                        'https://www.pngall.com/wp-content/uploads/12/Avatar-Profile-PNG-Clipart.png',
-                                      ),
-                                    ),
-                                    Positioned(
-                                      bottom: 0,
-                                      right: 0,
-                                      child: Container(
-                                        decoration: const BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Padding(
-                                          padding: EdgeInsets.all(4.0),
-                                          child: Icon(
-                                            Icons.edit,
-                                            color: Colors.blue,
-                                            size: 18,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 20),
-                                // User Info Fields
-                                _buildInfoField(
-                                  label: 'الاسم الأول',
-                                  value: firstName.isNotEmpty
-                                      ? firstName
-                                      : 'غير متوفر',
-                                ),
-                                const SizedBox(height: 16),
-                                _buildInfoField(
-                                  label: 'اسم العائلة',
-                                  value: lastName.isNotEmpty
-                                      ? lastName
-                                      : 'غير متوفر',
-                                ),
-                                const SizedBox(height: 16),
-                                _buildInfoField(
-                                  label: 'العمر',
-                                  value: age > 0 ? age.toString() : 'غير متوفر',
-                                ),
-                                const SizedBox(height: 16),
-                                _buildInfoField(
-                                  label: 'الجنس',
-                                  value: gender.isNotEmpty
-                                      ? gender
-                                      : 'غير متوفر',
-                                ),
-                                const SizedBox(height: 16),
-                                _buildInfoField(
-                                  label: 'البريد الإلكتروني',
-                                  value: email.isNotEmpty ? email : 'غير متوفر',
-                                ),
-                                const SizedBox(height: 20),
-                                // Action Cards
-                                _buildActionCard(
-                                  icon: Icons.notifications_none,
-                                  text: 'الاشعارات',
-                                  trailingWidget: Switch(
-                                    value: true,
-                                    onChanged: (value) {},
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                _buildActionCard(
-                                  icon: Icons.help_outline,
-                                  text: 'المساعدة و الدعم',
-                                ),
-                                const SizedBox(height: 20),
-                                // زر تسجيل الخروج
-                                ElevatedButton.icon(
-                                  onPressed: () async {
-                                    final authService = AuthService();
-                                    await authService.signOut();
+                              ),
+                              const SizedBox(height: 20),
 
-                                    if (context.mounted) {
-                                      Navigator.of(context).pushAndRemoveUntil(
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const SignInScreen(),
-                                        ),
-                                        (route) => false,
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(
-                                    Icons.logout,
+                              // 🟣 صورة الملف الشخصي
+                              Stack(
+                                alignment: Alignment.bottomRight,
+                                children: [
+                                  const CircleAvatar(
+                                    radius: 50,
+                                    backgroundImage: NetworkImage(
+                                      'https://www.pngall.com/wp-content/uploads/12/Avatar-Profile-PNG-Clipart.png',
+                                    ),
+                                  ),
+                                  Container(
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    padding: const EdgeInsets.all(4),
+                                    child: const Icon(
+                                      Icons.edit,
+                                      color: Colors.blue,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 25),
+
+                              // 🟡 معلومات المستخدم
+                              _buildInfoField(
+                                label: 'الاسم الأول',
+                                value: firstName,
+                              ),
+                              const SizedBox(height: 16),
+                              _buildInfoField(
+                                label: 'اسم العائلة',
+                                value: lastName,
+                              ),
+                              const SizedBox(height: 16),
+                              _buildInfoField(
+                                label: 'العمر',
+                                value: age > 0 ? age.toString() : 'غير متوفر',
+                              ),
+                              const SizedBox(height: 16),
+                              _buildInfoField(label: 'الجنس', value: gender),
+                              const SizedBox(height: 16),
+                              _buildInfoField(
+                                label: 'البريد الإلكتروني',
+                                value: email,
+                              ),
+
+                              const SizedBox(height: 25),
+
+                              // 🟠 خيارات إضافية
+                              _buildActionCard(
+                                icon: Icons.notifications_none,
+                                text: 'الإشعارات',
+                                trailingWidget: Switch(
+                                  value: true,
+                                  onChanged: (_) {},
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildActionCard(
+                                icon: Icons.help_outline,
+                                text: 'المساعدة والدعم',
+                              ),
+
+                              const SizedBox(height: 25),
+
+                              // 🔴 زر تسجيل الخروج
+                              ElevatedButton.icon(
+                                onPressed: _logout,
+                                icon: const Icon(
+                                  Icons.logout,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  'تسجيل الخروج',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
-                                  label: const Text(
-                                    'تسجيل الخروج',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color.fromARGB(
+                                    255,
+                                    237,
+                                    41,
+                                    41,
                                   ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.redAccent,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 32,
-                                      vertical: 14,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                const SizedBox(height: 100),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(height: 100),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -285,6 +275,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // 🔹 مكونات صغيرة
   Widget _buildInfoField({required String label, required String value}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,7 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             border: Border.all(color: Colors.black12),
           ),
           child: Text(
-            value,
+            value.isNotEmpty ? value : 'غير متوفر',
             style: const TextStyle(fontSize: 16, color: Colors.black54),
           ),
         ),
@@ -345,27 +336,25 @@ class _TopGradientPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final double h = size.height;
     final double w = size.width;
-    const Color lightColor = Color(0xFF9EEBE4);
-    const Color secondaryColor = Color(0xFF5DD5CA);
-    const Color primaryColor = Color(0xFF26A69A);
 
-    Path path = Path();
-    path.moveTo(0, 0);
-    path.lineTo(w, 0);
-    path.lineTo(w, h - 40);
-    path.quadraticBezierTo(w * 0.5, h + 50, 0, h - 40);
-    path.close();
-
-    final Rect rect = Rect.fromLTWH(0, 0, w, h);
-    final Gradient gradient = LinearGradient(
+    const Gradient gradient = LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: const [lightColor, secondaryColor, primaryColor],
-      stops: const [0.0, 0.5, 1.0],
+      colors: [Color(0xFF9EEBE4), Color(0xFF5DD5CA), Color(0xFF26A69A)],
+      stops: [0.0, 0.5, 1.0],
     );
 
-    final Paint paint = Paint()..shader = gradient.createShader(rect);
-    canvas.drawPath(path, paint);
+    final Path path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(w, 0)
+      ..lineTo(w, h - 40)
+      ..quadraticBezierTo(w * 0.5, h + 50, 0, h - 40)
+      ..close();
+
+    canvas.drawPath(
+      path,
+      Paint()..shader = gradient.createShader(Rect.fromLTWH(0, 0, w, h)),
+    );
   }
 
   @override
@@ -377,27 +366,27 @@ class _WavesPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final double w = size.width;
     final double h = size.height;
-    const Color waveColor1 = Color(0xFFE9E9E9);
-    const Color waveColor2 = Color(0xFFF5F5F5);
 
-    Paint paint1 = Paint()..color = waveColor1;
-    Path p1 = Path();
-    p1.moveTo(0, h * 0.6);
-    p1.quadraticBezierTo(w * 0.25, h * 0.45, w * 0.5, h * 0.6);
-    p1.quadraticBezierTo(w * 0.75, h * 0.75, w, h * 0.6);
-    p1.lineTo(w, h);
-    p1.lineTo(0, h);
-    p1.close();
+    final Paint paint1 = Paint()..color = const Color(0xFFE9E9E9);
+    final Paint paint2 = Paint()..color = const Color(0xFFF5F5F5);
+
+    final Path p1 = Path()
+      ..moveTo(0, h * 0.6)
+      ..quadraticBezierTo(w * 0.25, h * 0.45, w * 0.5, h * 0.6)
+      ..quadraticBezierTo(w * 0.75, h * 0.75, w, h * 0.6)
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
+
+    final Path p2 = Path()
+      ..moveTo(0, h * 0.75)
+      ..quadraticBezierTo(w * 0.28, h * 0.6, w * 0.5, h * 0.75)
+      ..quadraticBezierTo(w * 0.72, h * 0.9, w, h * 0.75)
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
+
     canvas.drawPath(p1, paint1);
-
-    Paint paint2 = Paint()..color = waveColor2;
-    Path p2 = Path();
-    p2.moveTo(0, h * 0.75);
-    p2.quadraticBezierTo(w * 0.28, h * 0.6, w * 0.5, h * 0.75);
-    p2.quadraticBezierTo(w * 0.72, h * 0.9, w, h * 0.75);
-    p2.lineTo(w, h);
-    p2.lineTo(0, h);
-    p2.close();
     canvas.drawPath(p2, paint2);
   }
 
