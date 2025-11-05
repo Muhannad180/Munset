@@ -3,6 +3,8 @@ import 'package:test1/test_screens/answer_button.dart';
 import 'package:test1/test_screens/data/questions.dart';
 import 'package:test1/test_screens/results.dart'; // استدعاء شاشة النتائج
 import '/style.dart';
+import 'package:test1/main_navigation.dart';
+import 'package:test1/login/auth_service.dart';
 
 class TestScreen extends StatefulWidget {
   const TestScreen({super.key});
@@ -17,7 +19,7 @@ class _TestScreen extends State<TestScreen> {
   var currentQuestionIndex = 0;
   var totalScore = 0;
 
-  void answerQuestion(String selectedAnswer) {
+  void answerQuestion(String selectedAnswer) async {
     int answerScore = 0;
     if (selectedAnswer == 'أبدًا') {
       answerScore = 0;
@@ -31,18 +33,33 @@ class _TestScreen extends State<TestScreen> {
 
     setState(() {
       totalScore += answerScore;
-
-      if (currentQuestionIndex < questions.length - 1) {
-        currentQuestionIndex++;
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ResultsScreen(score: totalScore),
-          ),
-        );
-      }
     });
+
+    // ✅ إذا باقي أسئلة → انتقل للسؤال التالي
+    if (currentQuestionIndex < questions.length - 1) {
+      setState(() {
+        currentQuestionIndex++;
+      });
+    } else {
+      // ✅ إذا انتهت كل الأسئلة
+      final user = AuthService().supabase.auth.currentUser;
+
+      if (user != null) {
+        try {
+          await AuthService().savePhq9Score(user.id, totalScore);
+        } catch (e) {
+          print("خطأ أثناء حفظ النتيجة: $e");
+        }
+      }
+
+      // ✅ ننتقل بعد انتهاء الـ await مباشرة باستخدام `WidgetsBinding`
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => MainNavigation()),
+          (route) => false,
+        );
+      });
+    }
   }
 
   @override

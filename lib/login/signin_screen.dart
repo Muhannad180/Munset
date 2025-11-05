@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:test1/login/signup_screen.dart';
 import 'package:test1/main_navigation.dart';
 import 'package:test1/login/auth_service.dart';
+import 'package:test1/test_screens/start_screen.dart';
+import 'package:test1/main.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -17,15 +19,36 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _obscurePassword = true;
 
   void login() async {
-    final email = emailController.text;
-    final password = passwordController.text;
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
 
     try {
-      await authService.signInWithEmailPassword(email, password);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => MainNavigation()),
+      final response = await authService.signInWithEmailPassword(
+        email,
+        password,
       );
+      final user = response.user;
+
+      if (user == null) throw Exception("فشل تسجيل الدخول");
+
+      // التحقق إذا المستخدم أنهى اختبار PHQ-9
+      final hasDoneTest = await authService.hasCompletedPhq9(user.id);
+
+      if (!mounted) return;
+
+      if (hasDoneTest) {
+        // المستخدم أنهى الاختبار
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MainNavigation()),
+        );
+      } else {
+        // أول مرة يدخل
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const StartScreen()),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

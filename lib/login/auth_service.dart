@@ -1,25 +1,25 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient supabase = Supabase.instance.client;
 
-  // Sign in
+  // تسجيل الدخول
   Future<AuthResponse> signInWithEmailPassword(
     String email,
     String password,
   ) async {
-    return await _supabase.auth.signInWithPassword(
+    return await supabase.auth.signInWithPassword(
       email: email,
       password: password,
     );
   }
 
-  // Sign up
+  // إنشاء حساب
   Future<AuthResponse> signUpWithEmailPassword(
     String email,
     String password,
   ) async {
-    return await _supabase.auth.signUp(email: email, password: password);
+    return await supabase.auth.signUp(email: email, password: password);
   }
 
   // حفظ بيانات المستخدم في جدول user
@@ -31,7 +31,7 @@ class AuthService {
     required String gender,
     required String email,
   }) async {
-    await _supabase.from('user').insert({
+    await supabase.from('user').insert({
       'id': userId,
       'first_name': firstName,
       'last_name': lastName,
@@ -41,33 +41,63 @@ class AuthService {
     });
   }
 
-  // Sign out
+  // تسجيل الخروج
   Future<void> signOut() async {
-    await _supabase.auth.signOut();
+    await supabase.auth.signOut();
   }
 
-  // Get user email
+  // الحصول على البريد الحالي
   String? getCurrentUserEmail() {
-    final session = _supabase.auth.currentSession;
+    final session = supabase.auth.currentSession;
     final user = session?.user;
     return user?.email;
   }
 
-  // Get current user ID
+  // الحصول على ID المستخدم الحالي
   String? getCurrentUserId() {
-    final session = _supabase.auth.currentSession;
+    final session = supabase.auth.currentSession;
     final user = session?.user;
     return user?.id;
   }
 
-  // Get user data from Supabase by user ID
+  // جلب بيانات المستخدم من جدول user
   Future<Map<String, dynamic>?> getUserDataById(String userId) async {
-    final response = await _supabase
+    final response = await supabase
         .from('user')
         .select()
         .eq('id', userId)
         .maybeSingle();
 
     return response;
+  }
+
+  // التحقق إذا المستخدم أنهى اختبار PHQ-9
+  Future<bool> hasCompletedPhq9(String userId) async {
+    final response = await supabase
+        .from('users')
+        .select('phq9_score')
+        .eq('id', userId)
+        .maybeSingle();
+
+    // إذا المستخدم غير موجود أو النتيجة غير موجودة
+    if (response == null || response['phq9_score'] == null) {
+      return false;
+    }
+
+    final score = response['phq9_score'] as int;
+    return score > 0;
+  }
+
+  Future<void> savePhq9Score(String userId, int score) async {
+    final response = await supabase
+        .from('users')
+        .update({'phq9_score': score})
+        .eq('id', userId);
+
+    if (response.error != null) {
+      print('خطأ في تحديث النتيجة: ${response.error!.message}');
+    } else {
+      print('تم حفظ النتيجة بنجاح ✅');
+    }
   }
 }
