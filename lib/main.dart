@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/welcome_page.dart';
 
 void main() async {
+  Gemini.init(apiKey: 'AIzaSyAcPTCI5CX7ewXrCmyl35I-ptu4n6ixyjI');
   await Supabase.initialize(
     url: "https://xzdmzyjoczcovczvzvac.supabase.co",
     anonKey:

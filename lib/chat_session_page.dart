@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:flutter_gemini/flutter_gemini.dart';
 
 class ChatSessionPage extends StatefulWidget {
   final String sessionTitle;
@@ -18,57 +17,13 @@ class ChatSessionPage extends StatefulWidget {
 }
 
 class _ChatSessionPageState extends State<ChatSessionPage> {
-  // Use a base URL for your API, set via --dart-define
-  static const String _baseUrl = String.fromEnvironment(
-    'API_URL_BASE',
-    defaultValue:
-        'http://10.0.2.2:8000', // 10.0.2.2 is Android emulator's localhost
-  );
-  static const String _chatUrl = '$_baseUrl/chat';
+  // Reads API URL from compile-time environment or falls back to local addresses.
+  // Use --dart-define=API_URL="https://prod.example.com/chat" in production.
+  static const String _apiUrl = String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:8000/chat');
 
   List<ChatMessage> messages = [];
   ChatUser currentUser = ChatUser(id: '0', firstName: 'User');
   ChatUser aiUser = ChatUser(id: '1', firstName: 'AI');
-
-  // --- (NEW) Trigger summary when the user leaves the page ---
-  @override
-  void dispose() {
-    // This function will run in the background
-    _summarizeAndEndSession();
-    super.dispose();
-  }
-
-  /// (NEW) Calls the backend to generate and save the AI summary
-  /// This is "fire-and-forget" - we don't wait for the response.
-  Future<void> _summarizeAndEndSession() async {
-    print("Triggering session summary for ${widget.sessionId}...");
-
-    // Build the correct URL for the summarize endpoint
-    final summarizeUrl = Uri.parse(
-      '$_baseUrl/api/sessions/${widget.sessionId}/summarize',
-    );
-
-    try {
-      // We don't 'await' the response, as we don't want to block
-      // the user from leaving the page.
-      http
-          .post(summarizeUrl, headers: {'Content-Type': 'application/json'})
-          .then((resp) {
-            if (resp.statusCode == 200) {
-              print("Session summarized successfully.");
-            } else {
-              print(
-                "Failed to summarize session. Status: ${resp.statusCode}, Body: ${resp.body}",
-              );
-            }
-          })
-          .catchError((e) {
-            print("Error triggering summary: $e");
-          });
-    } catch (e) {
-      print("Error in _summarizeAndEndSession: $e");
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,8 +45,7 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     );
   }
 
-  void _sendMessage(ChatMessage chatMessage) async {
-    // Add the user message to UI
+  void _sendMessage(ChatMessage chatMessage) {
     setState(() {
       messages = [chatMessage, ...messages];
     });
@@ -107,53 +61,49 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     });
 
     try {
-      // Use the updated _chatUrl variable
-      final uri = Uri.parse(_chatUrl);
+      final uri = Uri.parse(_apiUrl);
       final resp = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'message': chatMessage.text,
-          'session_id': widget.sessionId, // Pass the session ID
-        }),
+        body: jsonEncode({'message': chatMessage.text, 'session_id': widget.sessionId}),
       );
-
-      // Remove the "Thinking..." message
-      messages.removeWhere((m) => m == loadingMsg);
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
         final reply = data['reply'] ?? "No response from server.";
 
-        final aiMessage = ChatMessage(
-          user: aiUser,
-          createdAt: DateTime.now(),
-          text: reply,
-        );
+        // Replace the "Thinking..." message with the final reply
         setState(() {
+          // Remove first occurrence of loadingMsg if present
+          messages.removeWhere((m) => m == loadingMsg);
+          final aiMessage = ChatMessage(
+            user: aiUser,
+            createdAt: DateTime.now(),
+            text: reply,
+          );
           messages = [aiMessage, ...messages];
         });
       } else {
-        // Replace with an error message
-        final errMsg = ChatMessage(
-          user: aiUser,
-          createdAt: DateTime.now(),
-          text: "Error: server returned ${resp.statusCode}",
-        );
+        // Replace loading with error message
         setState(() {
+          messages.removeWhere((m) => m == loadingMsg);
+          final errMsg = ChatMessage(
+            user: aiUser,
+            createdAt: DateTime.now(),
+            text: "Error: server returned ${resp.statusCode}",
+          );
           messages = [errMsg, ...messages];
         });
         print("Server error: ${resp.statusCode} - ${resp.body}");
       }
     } catch (e) {
-      // Remove loading message on network error
-      messages.removeWhere((m) => m == loadingMsg);
-      final errMsg = ChatMessage(
-        user: aiUser,
-        createdAt: DateTime.now(),
-        text: "Network error: $e",
-      );
       setState(() {
+        messages.removeWhere((m) => m == loadingMsg);
+        final errMsg = ChatMessage(
+          user: aiUser,
+          createdAt: DateTime.now(),
+          text: "Network error: $e",
+        );
         messages = [errMsg, ...messages];
       });
       print("Network error when calling backend: $e");
