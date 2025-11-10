@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
-import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ChatSessionPage extends StatefulWidget {
   final String sessionTitle;
@@ -19,44 +18,21 @@ class ChatSessionPage extends StatefulWidget {
 }
 
 class _ChatSessionPageState extends State<ChatSessionPage> {
-  // Reads API URL from compile-time environment if provided via --dart-define.
-  // If not provided, pick a sensible default per platform:
-  // - Web: use http://localhost:8000/chat (browser can reach local host)
-  // - Mobile emulator: use 10.0.2.2 (Android emulator loopback)
-  // - Desktop: use localhost
-  // You can still override at build/run time with --dart-define=API_URL=<url>
-  String? _apiUrl;
+  // Reads API URL from compile-time environment or falls back to local addresses.
+  // Use --dart-define=API_URL="https://prod.example.com/chat" in production.
+  static const String _apiUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'https://munset-backend.onrender.com/chat',
+  );
 
   List<ChatMessage> messages = [];
+
   ChatUser currentUser = ChatUser(id: '0', firstName: 'User');
   ChatUser aiUser = ChatUser(id: '1', firstName: 'AI');
 
   @override
   Widget build(BuildContext context) {
-    // Ensure API URL is initialized once (uses compile-time dart-define if present)
-    if (_apiUrl == null) {
-      final env = const String.fromEnvironment('API_URL');
-      if (env.isNotEmpty) {
-        _apiUrl = env;
-      } else {
-        // Choose default based on platform
-        if (kIsWeb) {
-          _apiUrl = 'http://localhost:8000/chat';
-        } else {
-          // For desktop use localhost, for mobile emulator use Android loopback
-          // We assume common developer setup: Android emulator uses 10.0.2.2
-          _apiUrl = 'http://10.0.2.2:8000/chat';
-        }
-      }
-    }
-    return Scaffold(
-      // --- (NEW) Added AppBar ---
-      appBar: AppBar(
-        title: Text(widget.sessionTitle),
-        // This makes the back button call dispose() automatically
-      ),
-      body: _buildUI(),
-    );
+    return Scaffold(body: _buildUI());
   }
 
   Widget _buildUI() {
@@ -67,7 +43,8 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     );
   }
 
-  Future<void> _sendMessage(ChatMessage chatMessage) async {
+  void _sendMessage(ChatMessage chatMessage) async {
+    // Add the user message to UI
     setState(() {
       messages = [chatMessage, ...messages];
     });
@@ -83,11 +60,14 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     });
 
     try {
-  final uri = Uri.parse(_apiUrl!);
+      final uri = Uri.parse(_apiUrl);
       final resp = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'message': chatMessage.text, 'session_id': widget.sessionId}),
+        body: jsonEncode({
+          'message': chatMessage.text,
+          'session_id': widget.sessionId,
+        }),
       );
 
       if (resp.statusCode == 200) {
