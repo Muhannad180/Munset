@@ -1,299 +1,171 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:test1/login/auth_service.dart';
 
-class TasksScreen extends StatelessWidget {
+class TasksScreen extends StatefulWidget {
+  const TasksScreen({super.key});
+
+  @override
+  State<TasksScreen> createState() => _TasksScreenState();
+}
+
+class _TasksScreenState extends State<TasksScreen> {
+  final supabase = Supabase.instance.client;
+  final authService = AuthService();
+  List<Map<String, dynamic>> tasks = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+  }
+
+  // 🔹 جلب المهام
+  Future<void> _loadTasks() async {
+    try {
+      final response = await supabase.from('tasks').select().order('task_id');
+      setState(() {
+        tasks = List<Map<String, dynamic>>.from(response);
+        isLoading = false;
+      });
+    } catch (e) {
+      print('❌ خطأ في تحميل المهام: $e');
+      setState(() => isLoading = false);
+    }
+  }
+
+  // 🔹 إضافة مهمة جديدة
+  Future<void> _addTask(String taskText) async {
+    try {
+      // توليد task_id جديد (أكبر قيمة موجودة + 1)
+      int newTaskId = 1;
+      if (tasks.isNotEmpty) {
+        final ids = tasks.map((t) => t['task_id'] as int).toList();
+        newTaskId = ids.reduce((a, b) => a > b ? a : b) + 1;
+      }
+
+      final uuid = authService.getCurrentUserId();
+
+      await supabase.from('tasks').insert({
+        'id': uuid,
+        'task_id': newTaskId,
+        'task': taskText,
+        'task_completion': false,
+      });
+
+      await _loadTasks();
+    } catch (e) {
+      print('❌ خطأ أثناء إضافة المهمة: $e');
+    }
+  }
+
+  // 🔹 تغيير حالة المهمة
+  Future<void> _toggleTaskCompletion(int taskId, bool currentState) async {
+    try {
+      await supabase
+          .from('tasks')
+          .update({'task_completion': !currentState})
+          .eq('task_id', taskId);
+      await _loadTasks();
+    } catch (e) {
+      print('❌ خطأ أثناء تحديث المهمة: $e');
+    }
+  }
+
+  // 🔹 نافذة إضافة مهمة
+  void _openAddTaskDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('أضف مهمة جديدة'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'اكتب المهمة هنا'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                _addTask(controller.text.trim());
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5), // Light green background
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildAppBar(),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment
-                        .end, // Align text to the right for Arabic
-                    children: [
-                      _buildProgressChart(),
-                      SizedBox(height: 24),
-                      _buildLegend(),
-                      SizedBox(height: 24),
-                      Text(
-                        'المهام', // Tasks
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+      backgroundColor: const Color(0xFFF5F5F5),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'المهام',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF5E9E92),
+        centerTitle: true,
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : tasks.isEmpty
+          ? const Center(child: Text('لا توجد مهام بعد ✨'))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: tasks.length,
+              itemBuilder: (ctx, index) {
+                final task = tasks[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  color: task['task_completion']
+                      ? Colors.lightGreen
+                      : Colors.orange[200],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListTile(
+                    title: Text(
+                      task['task'],
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    trailing: Transform.scale(
+                      scale: 1.2,
+                      child: Checkbox(
+                        value: task['task_completion'] ?? false,
+                        onChanged: (_) => _toggleTaskCompletion(
+                          task['task_id'],
+                          task['task_completion'],
                         ),
+                        activeColor: Color(0xFF5E9E92),
+                        checkColor: Colors.white,
                       ),
-                      SizedBox(height: 16),
-                      _buildTaskCard(
-                        title: 'مهام الجلسات', // Session Tasks
-                        uncompleted: 1,
-                        completed: 2,
-                        color: Colors.lightGreen,
-                      ),
-                      SizedBox(height: 16),
-                      _buildTaskCard(
-                        title: 'عادات', // Habits
-                        uncompleted: 2,
-                        completed: 1,
-                        color: Colors.blue,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Handle add task
-        },
-        backgroundColor: Colors.green,
-        child: Icon(Icons.add, color: Colors.white, size: 36),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-    );
-  }
-
-  Widget _buildAppBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'المهام', // Tasks
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressChart() {
-    return Center(
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 200,
-            height: 200,
-            child: CustomPaint(painter: ChartPainter()),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '65%',
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              Text(
-                'اكتمل', // Completed
-                style: TextStyle(fontSize: 18, color: Colors.black54),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLegend() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildLegendItem(color: Colors.red, text: 'لم تكتمل'), // Not Completed
-        SizedBox(width: 16),
-        _buildLegendItem(color: Colors.blue, text: 'عادات'), // Habits
-        SizedBox(width: 16),
-        _buildLegendItem(color: Colors.green, text: 'الجلسات'), // Sessions
-      ],
-    );
-  }
-
-  Widget _buildLegendItem({required Color color, required String text}) {
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        SizedBox(width: 8),
-        Text(text, style: TextStyle(fontSize: 14, color: Colors.black87)),
-      ],
-    );
-  }
-
-  Widget _buildTaskCard({
-    required String title,
-    required int uncompleted,
-    required int completed,
-    required Color color,
-  }) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Icon(Icons.more_horiz, color: Colors.white),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(height: 4),
-              Row(
-                children: [
-                  Text(
-                    '$completed مكتمله', // Completed
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withOpacity(0.8),
                     ),
                   ),
-                  SizedBox(width: 8),
-                  Text(
-                    '$uncompleted لم تكتمل', // Not completed
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withOpacity(0.8),
-                    ),
-                  ),
-                  Icon(
-                    Icons.circle,
-                    size: 8,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
+                );
+              },
+            ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 100),
+        child: FloatingActionButton(
+          onPressed: _openAddTaskDialog,
+          backgroundColor: const Color(0xFF5E9E92),
+          child: const Icon(Icons.add, size: 40, color: Colors.white),
+        ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
-}
-
-class ChartPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    double strokeWidth = 20.0;
-    Offset center = Offset(size.width / 2, size.height / 2);
-    double radius = size.width / 2 - strokeWidth / 2;
-
-    Paint backgroundPaint = Paint()
-      ..color = Colors.grey.shade300
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
-
-    canvas.drawCircle(center, radius, backgroundPaint);
-
-    Paint greenPaint = Paint()
-      ..color = Colors.green
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    Paint bluePaint = Paint()
-      ..color = Colors.blue
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    Paint redPaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    // Angles for the segments (total 2*pi for a full circle)
-    double totalAngle = 2 * 3.1415926535;
-
-    // Assuming the percentages are roughly:
-    // Green: 65% (completed)
-    // Blue: 20% (habits)
-    // Red: 15% (not completed)
-
-    double greenAngle = totalAngle * 0.65;
-    double blueAngle = totalAngle * 0.20;
-    double redAngle = totalAngle * 0.15;
-
-    // Start drawing from the top (12 o'clock)
-    double startAngle = -3.1415926535 / 2; // -pi/2 for the top
-
-    // Green segment
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      greenAngle,
-      false,
-      greenPaint,
-    );
-
-    // Blue segment
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle + greenAngle,
-      blueAngle,
-      false,
-      bluePaint,
-    );
-
-    // Red segment
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle + greenAngle + blueAngle,
-      redAngle,
-      false,
-      redPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
-  }
-}
-
-// To run this code, you would typically use it in a main function:
-void main() {
-  runApp(
-    MaterialApp(
-      home: TasksScreen(),
-      debugShowCheckedModeBanner: false, // Hide debug banner
-    ),
-  );
 }
