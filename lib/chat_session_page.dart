@@ -29,10 +29,6 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     defaultValue: 'https://munset-backend.onrender.com/chat',
   );
   
-  static const String _apiUrl = String.fromEnvironment(
-    'API_URL',
-    defaultValue: 'https://munset-backend.onrender.com/chat',
-  );
 
   List<ChatMessage> messages = [];
 
@@ -42,7 +38,6 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(body: _buildUI());
     return Scaffold(body: _buildUI());
   }
 
