@@ -121,7 +121,7 @@ class Sessions extends StatelessWidget {
             context,
             MaterialPageRoute(
               builder: (context) =>
-                  ChatSessionPage(sessionTitle: title, sessionId: sessionId),
+                  ChatSessionPage(sessionTitle: title, sessionId:''), //session id is null for now, TODO: make code fetch it from data base or assign a unique one
             ),
           );
         } else if (isLocked || isCompleted) {
