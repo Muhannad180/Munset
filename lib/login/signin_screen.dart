@@ -3,7 +3,6 @@ import 'package:test1/login/signup_screen.dart';
 import 'package:test1/main_navigation.dart';
 import 'package:test1/login/auth_service.dart';
 import 'package:test1/test_screens/start_screen.dart';
-import 'package:test1/main.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});

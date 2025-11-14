@@ -29,14 +29,20 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     defaultValue: 'https://munset-backend.onrender.com/chat',
   );
   
+  static const String _apiUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'https://munset-backend.onrender.com/chat',
+  );
 
   List<ChatMessage> messages = [];
+
 
   ChatUser currentUser = ChatUser(id: '0', firstName: 'User');
   ChatUser aiUser = ChatUser(id: '1', firstName: 'AI');
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(body: _buildUI());
     return Scaffold(body: _buildUI());
   }
 
@@ -49,10 +55,10 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
   }
 
   void _sendMessage(ChatMessage chatMessage) async {
-  // Add user message to UI
-  setState(() {
-    messages = [chatMessage, ...messages];
-  });
+    // Add the user message to UI
+    setState(() {
+      messages = [chatMessage, ...messages];
+    });
 
   // Add temporary AI "Thinking..." message
   final loadingMsg = ChatMessage(

@@ -257,7 +257,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                             vertical: 14,
                                           ),
                                     ),
-                                    value: selectedAge,
+                                    initialValue: selectedAge,
                                     items: ages
                                         .map(
                                           (age) => DropdownMenuItem(

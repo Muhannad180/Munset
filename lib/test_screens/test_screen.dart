@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:test1/test_screens/answer_button.dart';
 import 'package:test1/test_screens/data/questions.dart';
-import 'package:test1/test_screens/results.dart'; // استدعاء شاشة النتائج
+// استدعاء شاشة النتائج
 import '/style.dart';
 import 'package:test1/main_navigation.dart';
 import 'package:test1/login/auth_service.dart';
