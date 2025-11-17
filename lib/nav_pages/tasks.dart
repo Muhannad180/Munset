@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/login/auth_service.dart';
 
+// NOTE: TaskUtility logic is now INLINE in home.dart for compilation stability.
+
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
 
@@ -21,34 +23,47 @@ class _TasksScreenState extends State<TasksScreen> {
     _loadTasks();
   }
 
-  // 🔹 جلب المهام
+  // 🔹 Load Tasks for this screen
   Future<void> _loadTasks() async {
+    final userId = authService.getCurrentUserId();
+    setState(() => isLoading = true);
+
+    if (userId == null) {
+      setState(() => isLoading = false);
+      return;
+    }
+
     try {
-      final response = await supabase.from('tasks').select().order('task_id');
+      final response = await supabase
+          .from('tasks')
+          .select()
+          .eq('id', userId)
+          .order('task_id');
       setState(() {
         tasks = List<Map<String, dynamic>>.from(response);
         isLoading = false;
       });
     } catch (e) {
-      print('❌ خطأ في تحميل المهام: $e');
+      print('❌ Error loading tasks: $e');
       setState(() => isLoading = false);
     }
   }
 
-  // 🔹 إضافة مهمة جديدة
+  // 🔹 Add new task
   Future<void> _addTask(String taskText) async {
     try {
-      // توليد task_id جديد (أكبر قيمة موجودة + 1)
+      final userId = authService.getCurrentUserId();
+      if (userId == null) return;
+
+      // Generate a new sequential task_id
       int newTaskId = 1;
       if (tasks.isNotEmpty) {
         final ids = tasks.map((t) => t['task_id'] as int).toList();
         newTaskId = ids.reduce((a, b) => a > b ? a : b) + 1;
       }
 
-      final uuid = authService.getCurrentUserId();
-
       await supabase.from('tasks').insert({
-        'id': uuid,
+        'id': userId,
         'task_id': newTaskId,
         'task': taskText,
         'task_completion': false,
@@ -56,38 +71,47 @@ class _TasksScreenState extends State<TasksScreen> {
 
       await _loadTasks();
     } catch (e) {
-      print('❌ خطأ أثناء إضافة المهمة: $e');
+      print('❌ Error adding task: $e');
     }
   }
 
-  // 🔹 تغيير حالة المهمة
+  // 🔹 Toggle task completion state
   Future<void> _toggleTaskCompletion(int taskId, bool currentState) async {
+    final userId = authService.getCurrentUserId();
+
+    if (userId == null) {
+      print('❌ Error: Cannot toggle task completion. User ID is null.');
+      return;
+    }
+
     try {
       await supabase
           .from('tasks')
           .update({'task_completion': !currentState})
-          .eq('task_id', taskId);
+          .eq('task_id', taskId)
+          .eq('id', userId);
+
       await _loadTasks();
     } catch (e) {
-      print('❌ خطأ أثناء تحديث المهمة: $e');
+      print('❌ Error updating task: $e');
     }
   }
 
-  // 🔹 نافذة إضافة مهمة
+  // 🔹 Dialog to add a new task
   void _openAddTaskDialog() {
     final controller = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('أضف مهمة جديدة'),
+        title: const Text('Add New Task'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(hintText: 'اكتب المهمة هنا'),
+          decoration: const InputDecoration(hintText: 'Write the task here'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -96,7 +120,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 Navigator.pop(ctx);
               }
             },
-            child: const Text('حفظ'),
+            child: const Text('Save'),
           ),
         ],
       ),
@@ -110,53 +134,57 @@ class _TasksScreenState extends State<TasksScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(
-          'المهام',
+          'Tasks',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF5E9E92),
         centerTitle: true,
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : tasks.isEmpty
-          ? const Center(child: Text('لا توجد مهام بعد ✨'))
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: tasks.length,
-              itemBuilder: (ctx, index) {
-                final task = tasks[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  color: task['task_completion']
-                      ? Colors.lightGreen
-                      : Colors.orange[200],
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ListTile(
-                    title: Text(
-                      task['task'],
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+      body: Directionality(
+        textDirection: TextDirection.rtl,
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : tasks.isEmpty
+            ? const Center(child: Text('لا توجد مهام بعد ✨'))
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: tasks.length,
+                itemBuilder: (ctx, index) {
+                  final task = tasks[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    color: task['task_completion']
+                        ? Colors.lightGreen.shade100
+                        : Colors.orange[200],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    trailing: Transform.scale(
-                      scale: 1.2,
-                      child: Checkbox(
-                        value: task['task_completion'] ?? false,
-                        onChanged: (_) => _toggleTaskCompletion(
-                          task['task_id'],
-                          task['task_completion'],
+                    child: ListTile(
+                      title: Text(
+                        task['task'],
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
                         ),
-                        activeColor: Color(0xFF5E9E92),
-                        checkColor: Colors.white,
+                        textAlign: TextAlign.right,
+                      ),
+                      trailing: Transform.scale(
+                        scale: 1.2,
+                        child: Checkbox(
+                          value: task['task_completion'] ?? false,
+                          onChanged: (_) => _toggleTaskCompletion(
+                            task['task_id'],
+                            task['task_completion'],
+                          ),
+                          activeColor: const Color(0xFF5E9E92),
+                          checkColor: Colors.white,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
+      ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 100),
         child: FloatingActionButton(

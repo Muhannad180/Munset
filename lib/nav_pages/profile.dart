@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/login/signin_screen.dart';
+import 'dart:ui' as ui;
+// 1. UNCOMMENT THIS LINE AFTER RUNNING `flutter pub add image_picker`:
+// import 'package:image_picker/image_picker.dart';
 
 class Profile extends StatelessWidget {
   final String? userEmail;
@@ -21,12 +24,29 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final supabase = Supabase.instance.client;
 
-  String firstName = '';
-  String lastName = '';
-  int age = 0;
-  String gender = '';
-  String email = '';
+  // 🔹 Text Controllers for Editing
+  final firstNameController = TextEditingController();
+  final lastNameController = TextEditingController();
+  final usernameController = TextEditingController();
+  final ageController = TextEditingController();
+  final emailController =
+      TextEditingController(); // Read-only but required for display
+
+  String currentGender = 'ذكر';
+  bool notificationEnabled = true;
+  String? profilePictureUrl; // Holds the URL of the user's profile picture
+
   bool isLoading = true;
+  String userId = '';
+
+  // 🔹 Team Data (for Support Modal)
+  final List<Map<String, String>> teamMembers = const [
+    {'name': 'Turki Yousef Aloufi', 'id': '2240184'},
+    {'name': 'Saeed Zaher Alshehri', 'id': '2240023'},
+    {'name': 'Abdulrahman Haitham Salamah', 'id': '2240211'},
+    {'name': 'Aamer Hamdan Aljagthami', 'id': '2340810'},
+    {'name': 'Muhannad Almahdi Albaqami', 'id': '2240071'},
+  ];
 
   @override
   void initState() {
@@ -34,47 +54,226 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadUserData();
   }
 
+  @override
+  void dispose() {
+    firstNameController.dispose();
+    lastNameController.dispose();
+    usernameController.dispose();
+    ageController.dispose();
+    emailController.dispose();
+    super.dispose();
+  }
+
+  // 🔹 Load User Data and Populate Controllers
   Future<void> _loadUserData() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) {
+      setState(() => isLoading = false);
+      return;
+    }
+
+    userId = user.id;
+
     try {
-      final user = supabase.auth.currentUser;
-
-      if (user == null) {
-        _showError('لم يتم العثور على المستخدم الحالي');
-        setState(() => isLoading = false);
-        return;
-      }
-
-      // 🔹 جلب بيانات المستخدم من جدول users حسب الـ email أو id
       final response = await supabase
           .from('users')
           .select()
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
       if (!mounted) return;
 
-      setState(() {
-        firstName = response['first_name'] ?? '';
-        lastName = response['last_name'] ?? '';
-        age = (response['age'] ?? 0) as int;
-        gender = response['gender'] ?? '';
-        email = response['email'] ?? '';
-      });
+      if (response != null) {
+        // Populate Controllers with data from Supabase
+        firstNameController.text = response['first_name'] ?? '';
+        lastNameController.text = response['last_name'] ?? '';
+        usernameController.text = response['username'] ?? '';
+        ageController.text = response['age']?.toString() ?? '';
+
+        setState(() {
+          currentGender = response['gender'] ?? 'ذكر';
+          notificationEnabled = response['notifications_enabled'] ?? true;
+          profilePictureUrl =
+              response['profile_picture_url'] as String?; // Loading URL
+        });
+      }
+
+      emailController.text = user.email ?? '';
     } catch (e) {
-      debugPrint('❌ خطأ أثناء جلب البيانات: $e');
-      _showError('حدث خطأ أثناء تحميل بيانات المستخدم');
+      print('❌ Error loading profile data: $e');
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
   }
 
-  void _showError(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+  // 🔹 Image Picker and Supabase Storage Upload (Real Implementation)
+  Future<void> _pickAndUploadImage() async {
+    if (userId.isEmpty) return;
+
+    // 2. UNCOMMENT THESE LINES AFTER RUNNING `flutter pub add image_picker`:
+    // final picker = ImagePicker();
+    // XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    // if (image == null) return;
+
+    // ⚠️ Placeholder warning: This must be removed after uncommenting the real logic above.
+    _showSnackbar(
+      'يرجى إضافة مكتبة image_picker ثم إعادة التشغيل.',
+      Colors.orange,
+    );
+
+    setState(() => isLoading = true);
+
+    // Simulation (Replace with real file upload if image_picker is used):
+    final publicUrl = 'https://placehold.co/100x100/60DD70/white?text=User+Pic';
+
+    // If you uncomment the real logic, you would replace the above line with:
+    // final publicUrl = await _uploadImageToSupabase(image!);
+
+    // 3. Save the public URL to the user profile
+    try {
+      await supabase
+          .from('users')
+          .update({'profile_picture_url': publicUrl})
+          .eq('id', userId);
+
+      _showSnackbar('تم تحديث الصورة بنجاح!', Colors.green);
+      setState(() {
+        profilePictureUrl = publicUrl;
+      });
+    } catch (e) {
+      _showSnackbar('فشل حفظ رابط الصورة.', Colors.red);
+      debugPrint('Image Save Error: $e');
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  // 🔹 [FOR REAL IMPLEMENTATION]: This method handles the actual upload to Supabase Storage.
+  // Future<String> _uploadImageToSupabase(XFile image) async {
+  //   final imageFile = File(image.path);
+  //   final bytes = await imageFile.readAsBytes();
+  //   final fileName = 'profile/${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+  //   // Upload file to the 'avatars' bucket (must be created in Supabase Storage)
+  //   final uploadResponse = await supabase.storage.from('avatars').uploadBinary(fileName, bytes);
+  //
+  //   // Get the public URL for the image
+  //   final publicUrl = supabase.storage.from('avatars').getPublicUrl(uploadResponse.data!.path);
+  //   return publicUrl;
+  // }
+
+  // 🔹 Save Changes to Supabase
+  Future<void> _saveProfile() async {
+    if (userId.isEmpty) return;
+
+    // Basic form validation
+    if (firstNameController.text.isEmpty ||
+        lastNameController.text.isEmpty ||
+        usernameController.text.isEmpty) {
+      _showSnackbar('الرجاء إدخال الاسم واسم المستخدم.', Colors.orange);
+      return;
+    }
+    if (int.tryParse(ageController.text.trim()) == null ||
+        int.parse(ageController.text.trim()) < 12) {
+      _showSnackbar('الرجاء إدخال عمر صحيح (12 فما فوق).', Colors.orange);
+      return;
+    }
+
+    try {
+      setState(() => isLoading = true);
+
+      final data = {
+        'id': userId,
+        'first_name': firstNameController.text.trim(),
+        'last_name': lastNameController.text.trim(),
+        'username': usernameController.text.trim(),
+        'age': int.tryParse(ageController.text.trim()),
+        'gender': currentGender,
+        'notifications_enabled': notificationEnabled,
+      };
+
+      // Use upsert to insert/update the user record
+      await supabase.from('users').upsert(data);
+
+      _showSnackbar('تم حفظ ملفك الشخصي بنجاح!', Colors.green);
+    } catch (e) {
+      _showSnackbar(
+        'فشل الحفظ: تأكد من إضافة عمودي "username" و "notifications_enabled" في قاعدة البيانات.',
+        Colors.red,
+      );
+      debugPrint('Save Error: $e');
+    } finally {
+      await _loadUserData();
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  // 🔹 Utility for messages
+  void _showSnackbar(String message, Color color) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message, textAlign: TextAlign.right),
+          backgroundColor: color,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  // 🔹 Support Modal (Second Requirement)
+  void _showSupportModal() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('المساعدة والدعم'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'فريق عمل المشروع (Project Team)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 10),
+                // Displaying team members
+                ...teamMembers
+                    .map(
+                      (member) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Text(
+                          '${member['name']!} (ID: ${member['id']!})',
+                          style: const TextStyle(fontSize: 14),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                const Divider(height: 20),
+                const Text(
+                  'جامعة جدة - قسم هندسة البرمجيات',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text(
+                'إغلاق',
+                style: TextStyle(color: Color(0xFF26A69A)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
+  // 🔹 Logout
   Future<void> _logout() async {
     await supabase.auth.signOut();
     if (!mounted) return;
@@ -88,20 +287,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     const double topGradientHeight = 200;
-    const double wavesHeight = 160;
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F5F5),
         body: isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFF26A69A)),
-              )
+            ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
                 child: Column(
                   children: [
-                    // 🟢 رأس الصفحة
+                    // 🟢 Top Section (Header and Waves)
                     SizedBox(
                       height: topGradientHeight,
                       child: Stack(
@@ -130,143 +326,176 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
 
-                    // 🟢 محتوى الصفحة
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned(
-                          top: -wavesHeight + 20,
-                          left: 0,
-                          right: 0,
-                          child: SizedBox(
-                            height: wavesHeight,
-                            child: CustomPaint(
-                              size: const Size(double.infinity, wavesHeight),
-                              painter: _WavesPainter(),
+                    // 🟢 Main Content
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 20.0,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'ملفك الشخصي',
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
                             ),
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24.0,
-                            vertical: 20.0,
-                          ),
-                          child: Column(
-                            children: [
-                              const Text(
-                                'ملفك الشخصي',
-                                style: TextStyle(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
+                          const SizedBox(height: 20),
 
-                              // 🟣 صورة الملف الشخصي
-                              Stack(
-                                alignment: Alignment.bottomRight,
-                                children: [
-                                  const CircleAvatar(
-                                    radius: 50,
-                                    backgroundImage: NetworkImage(
-                                      'https://www.pngall.com/wp-content/uploads/12/Avatar-Profile-PNG-Clipart.png',
-                                    ),
-                                  ),
-                                  Container(
-                                    decoration: const BoxDecoration(
+                          // 📸 Profile Picture Widget (Tappable)
+                          GestureDetector(
+                            onTap: _pickAndUploadImage,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: Colors.teal,
+                                  backgroundImage: profilePictureUrl != null
+                                      ? NetworkImage(profilePictureUrl!)
+                                            as ImageProvider<Object>?
+                                      : null,
+                                  child: profilePictureUrl == null
+                                      ? const Icon(
+                                          Icons.person,
+                                          size: 40,
+                                          color: Colors.white,
+                                        )
+                                      : null,
+                                ),
+                                // Edit Icon Overlay
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
                                       color: Colors.white,
                                       shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
                                     ),
-                                    padding: const EdgeInsets.all(4),
                                     child: const Icon(
                                       Icons.edit,
-                                      color: Colors.blue,
+                                      color: Color(0xFF26A69A),
                                       size: 18,
                                     ),
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 25),
-
-                              // 🟡 معلومات المستخدم
-                              _buildInfoField(
-                                label: 'الاسم الأول',
-                                value: firstName,
-                              ),
-                              const SizedBox(height: 16),
-                              _buildInfoField(
-                                label: 'اسم العائلة',
-                                value: lastName,
-                              ),
-                              const SizedBox(height: 16),
-                              _buildInfoField(
-                                label: 'العمر',
-                                value: age > 0 ? age.toString() : 'غير متوفر',
-                              ),
-                              const SizedBox(height: 16),
-                              _buildInfoField(label: 'الجنس', value: gender),
-                              const SizedBox(height: 16),
-                              _buildInfoField(
-                                label: 'البريد الإلكتروني',
-                                value: email,
-                              ),
-
-                              const SizedBox(height: 25),
-
-                              // 🟠 خيارات إضافية
-                              _buildActionCard(
-                                icon: Icons.notifications_none,
-                                text: 'الإشعارات',
-                                trailingWidget: Switch(
-                                  value: true,
-                                  onChanged: (_) {},
                                 ),
-                              ),
-                              const SizedBox(height: 16),
-                              _buildActionCard(
-                                icon: Icons.help_outline,
-                                text: 'المساعدة والدعم',
-                              ),
-
-                              const SizedBox(height: 25),
-
-                              // 🔴 زر تسجيل الخروج
-                              ElevatedButton.icon(
-                                onPressed: _logout,
-                                icon: const Icon(
-                                  Icons.logout,
-                                  color: Colors.white,
-                                ),
-                                label: const Text(
-                                  'تسجيل الخروج',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color.fromARGB(
-                                    255,
-                                    237,
-                                    41,
-                                    41,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                    vertical: 14,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 100),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+
+                          const SizedBox(height: 25),
+
+                          // 🟡 Editable User Info Fields
+                          _buildEditableField(
+                            firstNameController,
+                            'الاسم الأول',
+                            editable: true,
+                          ),
+                          _buildEditableField(
+                            lastNameController,
+                            'اسم العائلة',
+                            editable: true,
+                          ),
+                          _buildEditableField(
+                            usernameController,
+                            'اسم المستخدم',
+                            editable: true,
+                          ),
+                          _buildEditableField(
+                            ageController,
+                            'العمر',
+                            keyboardType: TextInputType.number,
+                            editable: true,
+                          ),
+
+                          _buildGenderDropdown(),
+
+                          // Email (Read-only)
+                          _buildEditableField(
+                            emailController,
+                            'البريد الإلكتروني',
+                            editable: false,
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Notifications Toggle
+                          _buildToggleItem('الإشعارات', notificationEnabled, (
+                            bool newValue,
+                          ) {
+                            setState(() {
+                              notificationEnabled = newValue;
+                            });
+                          }),
+
+                          const SizedBox(height: 10),
+
+                          // Help and Support Button
+                          _buildTappableItem(
+                            'المساعدة والدعم',
+                            Icons.help_outline,
+                            _showSupportModal,
+                          ),
+
+                          const SizedBox(height: 30),
+
+                          // Save Button
+                          ElevatedButton(
+                            onPressed: _saveProfile,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF26A69A),
+                              minimumSize: const Size(double.infinity, 50),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'حفظ التغييرات',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 15),
+
+                          // Logout Button (Re-using original design)
+                          ElevatedButton.icon(
+                            onPressed: _logout, // CORRECTED: calls _logout
+                            icon: const Icon(Icons.logout, color: Colors.white),
+                            label: const Text(
+                              'تسجيل الخروج',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color.fromARGB(
+                                255,
+                                237,
+                                41,
+                                41,
+                              ),
+                              minimumSize: const Size(double.infinity, 50),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 50),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -275,55 +504,141 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 🔹 مكونات صغيرة
-  Widget _buildInfoField({required String label, required String value}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
+  // 🔹 Helper Widget for Editable TextFields
+  Widget _buildEditableField(
+    TextEditingController controller,
+    String label, {
+    TextInputType keyboardType = TextInputType.text,
+    bool editable = true,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black12),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            textAlign: TextAlign.right,
+            readOnly:
+                !editable, // Use readOnly instead of enabled for better styling control
+            style: TextStyle(color: editable ? Colors.black : Colors.grey[600]),
+            decoration: InputDecoration(
+              suffixIcon: editable
+                  ? const Icon(Icons.edit, size: 20, color: Color(0xFF26A69A))
+                  : null,
+              fillColor: editable ? Colors.white : Colors.grey[200],
+              filled: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+            ),
           ),
-          child: Text(
-            value.isNotEmpty ? value : 'غير متوفر',
-            style: const TextStyle(fontSize: 16, color: Colors.black54),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildActionCard({
-    required IconData icon,
-    required String text,
-    Widget? trailingWidget,
-  }) {
-    return Card(
-      color: Colors.white,
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+  // 🔹 Helper Widget for Gender Dropdown
+  Widget _buildGenderDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'الجنس',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: currentGender,
+                items: ['ذكر', 'أنثى'].map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value, textAlign: TextAlign.right),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      currentGender = newValue;
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔹 Helper Widget for Toggle Items
+  Widget _buildToggleItem(
+    String title,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 15),
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 16)),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: const Color(0xFF26A69A),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔹 Helper Widget for Tappable Action Items
+  Widget _buildTappableItem(String title, IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+        ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(icon, color: Colors.black54),
-            const SizedBox(width: 15),
-            Text(text, style: const TextStyle(fontSize: 16)),
-            const Spacer(),
-            if (trailingWidget != null) trailingWidget,
+            Text(title, style: const TextStyle(fontSize: 16)),
+            Icon(icon, color: const Color(0xFF26A69A)),
           ],
         ),
       ),
@@ -331,6 +646,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+// Custom Painters (Used for the background waves)
 class _TopGradientPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {

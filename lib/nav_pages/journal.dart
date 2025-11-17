@@ -4,8 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/login/auth_service.dart';
 import 'dart:ui' as ui;
 
+// 💡 Define a callback function to notify other screens (like HomePage) to reload
 class Journal extends StatefulWidget {
-  const Journal({super.key});
+  final VoidCallback? onJournalSaved;
+  const Journal({super.key, this.onJournalSaved});
 
   @override
   State<Journal> createState() => _JournalState();
@@ -16,24 +18,25 @@ class _JournalState extends State<Journal> {
   final authService = AuthService();
 
   List<Map<String, dynamic>> journals = [];
-  int currentIndex = 0;
+  int currentIndex = 0; // For previous/next journal navigation
   bool isLoading = true;
 
-  final List<String> moods = [
-    '😭',
-    '😢',
-    '😔',
-    '😞',
-    '😐',
-    '🙂',
-    '😄',
-    '😍',
-    '🤩',
-    '😎',
-    '😇',
-    '😤',
-    '🥳',
-    '😴',
+  // 💡 Add meaningful names for moods (used for display on the home screen)
+  final List<Map<String, String>> moods = [
+    {'emoji': '😭', 'name': 'Very Sad'},
+    {'emoji': '😢', 'name': 'Sad'},
+    {'emoji': '😔', 'name': 'Depressed'},
+    {'emoji': '😞', 'name': 'Disappointed'},
+    {'emoji': '😐', 'name': 'Neutral'},
+    {'emoji': '🙂', 'name': 'Calm'},
+    {'emoji': '😄', 'name': 'Happy'},
+    {'emoji': '😍', 'name': 'Loving'},
+    {'emoji': '🤩', 'name': 'Excited'},
+    {'emoji': '😎', 'name': 'Confident'},
+    {'emoji': '😇', 'name': 'Relaxed'},
+    {'emoji': '😤', 'name': 'Angry'},
+    {'emoji': '🥳', 'name': 'Celebratory'},
+    {'emoji': '😴', 'name': 'Tired'},
   ];
 
   late final Map<String, Color> moodColors = {
@@ -59,7 +62,7 @@ class _JournalState extends State<Journal> {
     _loadJournals();
   }
 
-  // 🔹 جلب اليوميات من Supabase
+  // 🔹 Load journals from Supabase
   Future<void> _loadJournals() async {
     final userId = authService.getCurrentUserId();
     if (userId == null) return;
@@ -69,25 +72,28 @@ class _JournalState extends State<Journal> {
           .from('journals')
           .select()
           .eq('id', userId)
-          .order('journal_id', ascending: false); // ترتيب حسب اليومية
+          .order('journal_id', ascending: false);
 
       setState(() {
         journals = response;
         isLoading = false;
       });
     } catch (e) {
-      print('خطأ في تحميل اليوميات');
+      print('❌ Error loading journals');
       setState(() => isLoading = false);
     }
   }
 
-  // 🔹 حفظ اليومية في Supabase
-  // 🔹 حفظ اليومية في Supabase
-  Future<void> _saveJournal(String mood, String description) async {
+  // 🔹 Save journal to Supabase
+  Future<void> _saveJournal(
+    String moodEmoji,
+    String moodName,
+    String description,
+  ) async {
     final userId = authService.getCurrentUserId();
     if (userId == null) return;
 
-    // الحصول على آخر journal_id للمستخدم
+    // Get the last journal_id for the user
     int lastJournal = 0;
     if (journals.isNotEmpty) {
       lastJournal = journals[0]['journal_id'] ?? 0;
@@ -99,29 +105,34 @@ class _JournalState extends State<Journal> {
       await supabase.from('journals').insert({
         'id': userId,
         'journal_id': journalId,
-        'mode': mood,
+        'mode': moodEmoji, // Save emoji
+        'mode_name': moodName, // Save name
         'mode_description': description,
         'mode_date': DateTime.now().toIso8601String(),
       });
 
-      // أضفها محليًا بعد الحفظ
+      // Add it locally after saving
       setState(() {
         journals.insert(0, {
           'journal_id': journalId,
-          'mode': mood,
+          'mode': moodEmoji,
+          'mode_name': moodName,
           'mode_description': description,
           'mode_date': DateTime.now().toIso8601String(),
         });
         currentIndex = 0;
       });
+
+      // 💡 Call the callback function to trigger HomePage reload
+      widget.onJournalSaved?.call();
     } catch (e) {
-      print('❌ خطأ أثناء الحفظ: $e');
+      print('❌ Error during save: $e');
     }
   }
 
-  // 🔹 فتح نافذة الإضافة
+  // 🔹 Open Add Journal Modal
   void _openAddJournalModal() {
-    int selectedMood = 5;
+    int selectedMoodIndex = 4; // Default to 'Neutral'
     final detailsCtrl = TextEditingController();
 
     showModalBottomSheet(
@@ -137,16 +148,17 @@ class _JournalState extends State<Journal> {
             right: 20,
             left: 20,
             top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 180,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
           ),
           child: StatefulBuilder(
             builder: (context, setModalState) {
               return SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      "أضف شعورك اليوم 📝",
+                      "Add Your Daily Feeling 📝",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
@@ -154,18 +166,19 @@ class _JournalState extends State<Journal> {
                     ),
                     const SizedBox(height: 20),
 
-                    // صف الإيموجيات
+                    // Emojis Row
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(moods.length, (index) {
-                          final isSel = selectedMood == index;
+                          final isSel = selectedMoodIndex == index;
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                             child: InkWell(
-                              onTap: () =>
-                                  setModalState(() => selectedMood = index),
+                              onTap: () => setModalState(
+                                () => selectedMoodIndex = index,
+                              ),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.all(10),
@@ -187,7 +200,7 @@ class _JournalState extends State<Journal> {
                                   duration: const Duration(milliseconds: 180),
                                   opacity: isSel ? 1.0 : 0.4,
                                   child: Text(
-                                    moods[index],
+                                    moods[index]['emoji']!, // Use emoji
                                     style: TextStyle(fontSize: isSel ? 32 : 26),
                                   ),
                                 ),
@@ -198,13 +211,19 @@ class _JournalState extends State<Journal> {
                       ),
                     ),
                     const SizedBox(height: 20),
+                    // 💡 Display current mood name
+                    Text(
+                      'Current Mood: ${moods[selectedMoodIndex]['name']}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
 
                     TextField(
                       controller: detailsCtrl,
                       maxLines: 4,
                       textAlign: TextAlign.right,
                       decoration: InputDecoration(
-                        hintText: "اكتب تفاصيل أكثر عن يومك..",
+                        hintText: "Write more details about your day..",
                         filled: true,
                         fillColor: Colors.grey[100],
                         border: OutlineInputBorder(
@@ -228,14 +247,15 @@ class _JournalState extends State<Journal> {
                         onPressed: () async {
                           if (detailsCtrl.text.isEmpty) return;
                           await _saveJournal(
-                            moods[selectedMood].trim(),
+                            moods[selectedMoodIndex]['emoji']!,
+                            moods[selectedMoodIndex]['name']!,
                             detailsCtrl.text.trim(),
                           );
                           if (context.mounted) Navigator.pop(ctx);
                         },
                         icon: const Icon(Icons.save, color: Colors.white),
                         label: const Text(
-                          "حفظ",
+                          "Save",
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -269,7 +289,7 @@ class _JournalState extends State<Journal> {
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: const Text(
-            "💭 يومياتي",
+            "💭 My Journal",
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           backgroundColor: const Color(0xFF5E9E92),
@@ -302,6 +322,16 @@ class _JournalState extends State<Journal> {
                     children: [
                       Text(j!['mode'], style: const TextStyle(fontSize: 60)),
                       const SizedBox(height: 16),
+                      // 💡 Display mood name
+                      Text(
+                        j['mode_name'] ?? 'Undefined',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       Text(
                         j['mode_description'],
                         textAlign: TextAlign.center,
@@ -323,7 +353,7 @@ class _JournalState extends State<Journal> {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        "يومية ${currentIndex + 1} من ${journals.length}",
+                        "Entry ${currentIndex + 1} of ${journals.length}",
                         style: const TextStyle(
                           fontSize: 14,
                           color: Colors.black45,
@@ -335,7 +365,7 @@ class _JournalState extends State<Journal> {
               )
             : const Center(
                 child: Text(
-                  "لا توجد يوميات بعد ✨",
+                  "No journal entries yet ✨",
                   style: TextStyle(fontSize: 16, color: Colors.black54),
                 ),
               ),

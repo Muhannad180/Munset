@@ -15,6 +15,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final authService = AuthService();
   final firstNameController = TextEditingController();
   final lastNameController = TextEditingController();
+  final usernameController =
+      TextEditingController(); // 💡 New Username Controller
   final ageController = TextEditingController();
   final genderController = TextEditingController();
 
@@ -33,13 +35,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void signUp() async {
     final firstName = firstNameController.text.trim();
     final lastName = lastNameController.text.trim();
+    final username = usernameController.text.trim(); // 💡 Get Username
     final email = emailController.text.trim();
     final password = passwordController.text;
     final confirmPassword = confirmPasswordController.text;
 
-    // التحقق من جميع الحقول
+    // 💡 Validation Check: Include username
     if (firstName.isEmpty ||
         lastName.isEmpty ||
+        username.isEmpty || // Check username
         selectedAge == null ||
         selectedGender == null ||
         email.isEmpty ||
@@ -57,6 +61,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
+    // Optional: Check if username already exists in DB (Best practice)
+    final existingUser = await supabase
+        .from('users')
+        .select()
+        .eq('username', username)
+        .maybeSingle();
+    if (existingUser != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("اسم المستخدم محجوز. يرجى اختيار اسم آخر."),
+        ),
+      );
+      return;
+    }
+
     try {
       // إنشاء حساب في Auth
       final response = await authService.signUpWithEmailPassword(
@@ -68,11 +87,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (response.user != null) {
         final userId = response.user!.id;
 
-        // حفظ بيانات المستخدم في جدول user
+        // 💡 Save username in addition to other data
         await supabase.from('users').insert({
           "id": userId,
           "first_name": firstName,
           "last_name": lastName,
+          "username": username, // 💡 Saving Username
           "age": int.parse(selectedAge!),
           "gender": selectedGender!,
           "email": email,
@@ -102,6 +122,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void dispose() {
     firstNameController.dispose();
     lastNameController.dispose();
+    usernameController.dispose(); // 💡 Dispose new controller
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
@@ -236,6 +257,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   ),
                                 ),
                               ],
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // 💡 New: اسم المستخدم (Username)
+                            TextField(
+                              controller: usernameController,
+                              decoration: InputDecoration(
+                                labelText: 'اسم المستخدم',
+                                hintText: 'اختر اسم مستخدم فريد',
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
 
                             const SizedBox(height: 16),
@@ -437,7 +476,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               width: double.infinity,
                               height: 50,
                               child: ElevatedButton(
-                                onPressed: signUp,
+                                onPressed: agreePersonalData ? signUp : null,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF26A69A),
                                   shape: RoundedRectangleBorder(

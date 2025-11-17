@@ -3,6 +3,7 @@ import 'package:test1/login/signup_screen.dart';
 import 'package:test1/main_navigation.dart';
 import 'package:test1/login/auth_service.dart';
 import 'package:test1/test_screens/start_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -13,17 +14,57 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   final authService = AuthService();
-  final emailController = TextEditingController();
+  final supabase = Supabase.instance.client;
+  final usernameOrEmailController =
+      TextEditingController(); // Unified controller
   final passwordController = TextEditingController();
   bool _obscurePassword = true;
 
+  // Helper to check if string looks like an email
+  bool _isEmail(String input) {
+    // Simple regex check for email pattern
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(input);
+  }
+
+  // 🔹 Step 1: Find Email if Username is Provided
+  Future<String?> _getEmailByUsername(String username) async {
+    try {
+      final response = await supabase
+          .from('users')
+          .select('email')
+          .eq('username', username)
+          .maybeSingle();
+
+      return response?['email'] as String?;
+    } catch (e) {
+      debugPrint('❌ Error finding email by username: $e');
+      return null;
+    }
+  }
+
   void login() async {
-    final email = emailController.text.trim();
+    final input = usernameOrEmailController.text.trim();
     final password = passwordController.text.trim();
 
+    String emailToAuthenticate;
+
+    // 1. Determine if input is Email or Username
+    if (_isEmail(input)) {
+      emailToAuthenticate = input;
+    } else {
+      // Input is likely a username, query the database for the corresponding email
+      final foundEmail = await _getEmailByUsername(input);
+      if (foundEmail == null) {
+        _showLoginError("اسم المستخدم أو البريد الإلكتروني غير موجود.");
+        return;
+      }
+      emailToAuthenticate = foundEmail;
+    }
+
+    // 2. Attempt Authentication with the derived email
     try {
       final response = await authService.signInWithEmailPassword(
-        email,
+        emailToAuthenticate, // Use the determined email
         password,
       );
       final user = response.user;
@@ -49,19 +90,24 @@ class _SignInScreenState extends State<SignInScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("البريد الإلكتروني أو كلمة المرور غير صحيحة !!"),
-          ),
-        );
-      }
+      _showLoginError("كلمة المرور غير صحيحة.");
+    }
+  }
+
+  void _showLoginError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message, textAlign: TextAlign.right),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   @override
   void dispose() {
-    emailController.dispose();
+    usernameOrEmailController.dispose();
     passwordController.dispose();
     super.dispose();
   }
@@ -86,9 +132,9 @@ class _SignInScreenState extends State<SignInScreen> {
                     size: const Size(double.infinity, topGradientHeight),
                     painter: _TopGradientPainter(),
                   ),
-                  Center(
+                  const Center(
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 20),
+                      padding: EdgeInsets.only(top: 20),
                       child: Text(
                         'مُنصت',
                         style: TextStyle(
@@ -148,12 +194,12 @@ class _SignInScreenState extends State<SignInScreen> {
                             ),
                             const SizedBox(height: 26),
 
-                            // البريد الإلكتروني
+                            // 💡 Username or Email Input
                             TextField(
-                              controller: emailController,
+                              controller: usernameOrEmailController,
                               decoration: InputDecoration(
-                                labelText: 'البريد الإلكتروني',
-                                hintText: 'أدخل البريد الإلكتروني',
+                                labelText: 'اسم المستخدم أو البريد الإلكتروني',
+                                hintText: 'أدخل اسم المستخدم أو البريد',
                                 filled: true,
                                 fillColor: Colors.white,
                                 contentPadding: const EdgeInsets.symmetric(
@@ -232,12 +278,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
                             GestureDetector(
                               onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => MainNavigation(),
-                                  ),
-                                );
+                                // Navigator action for 'Forgot Password' placeholder
                               },
                               child: const Text(
                                 'نسيت كلمة المرور؟',
