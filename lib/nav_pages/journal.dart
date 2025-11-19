@@ -18,27 +18,28 @@ class _JournalState extends State<Journal> {
   final authService = AuthService();
 
   List<Map<String, dynamic>> journals = [];
-  int currentIndex = 0; // For previous/next journal navigation
+  int currentIndex = 0;
   bool isLoading = true;
 
-  // 💡 Add meaningful names for moods (used for display on the home screen)
+  // 💡 Moods with Arabic names for display
   final List<Map<String, String>> moods = [
-    {'emoji': '😭', 'name': 'Very Sad'},
-    {'emoji': '😢', 'name': 'Sad'},
-    {'emoji': '😔', 'name': 'Depressed'},
-    {'emoji': '😞', 'name': 'Disappointed'},
-    {'emoji': '😐', 'name': 'Neutral'},
-    {'emoji': '🙂', 'name': 'Calm'},
-    {'emoji': '😄', 'name': 'Happy'},
-    {'emoji': '😍', 'name': 'Loving'},
-    {'emoji': '🤩', 'name': 'Excited'},
-    {'emoji': '😎', 'name': 'Confident'},
-    {'emoji': '😇', 'name': 'Relaxed'},
-    {'emoji': '😤', 'name': 'Angry'},
-    {'emoji': '🥳', 'name': 'Celebratory'},
-    {'emoji': '😴', 'name': 'Tired'},
+    {'emoji': '😭', 'name': 'حزين جداً'},
+    {'emoji': '😢', 'name': 'حزين'},
+    {'emoji': '😔', 'name': 'مكتئب'},
+    {'emoji': '😞', 'name': 'خيبة أمل'},
+    {'emoji': '😐', 'name': 'محايد'},
+    {'emoji': '🙂', 'name': 'هادئ'},
+    {'emoji': '😄', 'name': 'سعيد'},
+    {'emoji': '😍', 'name': 'محبوب'},
+    {'emoji': '🤩', 'name': 'متحمس'},
+    {'emoji': '😎', 'name': 'واثق'},
+    {'emoji': '😇', 'name': 'مسترخٍ'},
+    {'emoji': '😤', 'name': 'غاضب'},
+    {'emoji': '🥳', 'name': 'محتفل'},
+    {'emoji': '😴', 'name': 'متعب'},
   ];
 
+  // FIX: Ensured all shade values are standard (e.g., shade100, not shade110)
   late final Map<String, Color> moodColors = {
     '😭': Colors.red.shade100,
     '😢': Colors.orange.shade100,
@@ -79,12 +80,12 @@ class _JournalState extends State<Journal> {
         isLoading = false;
       });
     } catch (e) {
-      print('❌ Error loading journals');
+      print('❌ خطأ في تحميل اليوميات: $e');
       setState(() => isLoading = false);
     }
   }
 
-  // 🔹 Save journal to Supabase
+  // 🔹 Save journal to Supabase (FIXED LOGIC)
   Future<void> _saveJournal(
     String moodEmoji,
     String moodName,
@@ -93,46 +94,39 @@ class _JournalState extends State<Journal> {
     final userId = authService.getCurrentUserId();
     if (userId == null) return;
 
-    // Get the last journal_id for the user
-    int lastJournal = 0;
-    if (journals.isNotEmpty) {
-      lastJournal = journals[0]['journal_id'] ?? 0;
-    }
-
-    int journalId = lastJournal + 1;
+    // We omit 'journal_id' here, trusting the database to auto-generate it.
 
     try {
-      await supabase.from('journals').insert({
-        'id': userId,
-        'journal_id': journalId,
-        'mode': moodEmoji, // Save emoji
-        'mode_name': moodName, // Save name
-        'mode_description': description,
-        'mode_date': DateTime.now().toIso8601String(),
-      });
+      // 💡 Supabase insert command
+      final List<Map<String, dynamic>> response =
+          await supabase.from('journals').insert({
+            'id': userId,
+            'mode': moodEmoji,
+            'mode_name': moodName,
+            'mode_description': description,
+            'mode_date': DateTime.now().toIso8601String(),
+          }).select();
+
+      final savedEntry = response.first;
 
       // Add it locally after saving
       setState(() {
-        journals.insert(0, {
-          'journal_id': journalId,
-          'mode': moodEmoji,
-          'mode_name': moodName,
-          'mode_description': description,
-          'mode_date': DateTime.now().toIso8601String(),
-        });
+        journals.insert(0, savedEntry); // Use the data returned from DB
         currentIndex = 0;
       });
 
       // 💡 Call the callback function to trigger HomePage reload
       widget.onJournalSaved?.call();
     } catch (e) {
-      print('❌ Error during save: $e');
+      // If save fails for any reason (e.g., connection lost), print the error
+      print('❌ خطأ أثناء الحفظ (Save Failed): ${e.toString()}');
+      _loadJournals();
     }
   }
 
   // 🔹 Open Add Journal Modal
   void _openAddJournalModal() {
-    int selectedMoodIndex = 4; // Default to 'Neutral'
+    int selectedMoodIndex = 4; // Default to 'محايد'
     final detailsCtrl = TextEditingController();
 
     showModalBottomSheet(
@@ -158,7 +152,7 @@ class _JournalState extends State<Journal> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      "Add Your Daily Feeling 📝",
+                      "أضف شعورك اليوم 📝",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
@@ -200,7 +194,7 @@ class _JournalState extends State<Journal> {
                                   duration: const Duration(milliseconds: 180),
                                   opacity: isSel ? 1.0 : 0.4,
                                   child: Text(
-                                    moods[index]['emoji']!, // Use emoji
+                                    moods[index]['emoji']!,
                                     style: TextStyle(fontSize: isSel ? 32 : 26),
                                   ),
                                 ),
@@ -211,9 +205,9 @@ class _JournalState extends State<Journal> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    // 💡 Display current mood name
+                    // Display current mood name in Arabic
                     Text(
-                      'Current Mood: ${moods[selectedMoodIndex]['name']}',
+                      'المزاج الحالي: ${moods[selectedMoodIndex]['name']}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 10),
@@ -223,7 +217,7 @@ class _JournalState extends State<Journal> {
                       maxLines: 4,
                       textAlign: TextAlign.right,
                       decoration: InputDecoration(
-                        hintText: "Write more details about your day..",
+                        hintText: "اكتب تفاصيل أكثر عن يومك..",
                         filled: true,
                         fillColor: Colors.grey[100],
                         border: OutlineInputBorder(
@@ -255,7 +249,7 @@ class _JournalState extends State<Journal> {
                         },
                         icon: const Icon(Icons.save, color: Colors.white),
                         label: const Text(
-                          "Save",
+                          "حفظ",
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -289,7 +283,7 @@ class _JournalState extends State<Journal> {
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: const Text(
-            "💭 My Journal",
+            "💭 يومياتي",
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           backgroundColor: const Color(0xFF5E9E92),
@@ -322,9 +316,9 @@ class _JournalState extends State<Journal> {
                     children: [
                       Text(j!['mode'], style: const TextStyle(fontSize: 60)),
                       const SizedBox(height: 16),
-                      // 💡 Display mood name
+                      // Display mood name in Arabic
                       Text(
-                        j['mode_name'] ?? 'Undefined',
+                        j['mode_name'] ?? 'غير معرف',
                         style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -353,7 +347,7 @@ class _JournalState extends State<Journal> {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        "Entry ${currentIndex + 1} of ${journals.length}",
+                        "يومية ${currentIndex + 1} من ${journals.length}",
                         style: const TextStyle(
                           fontSize: 14,
                           color: Colors.black45,
@@ -365,7 +359,7 @@ class _JournalState extends State<Journal> {
               )
             : const Center(
                 child: Text(
-                  "No journal entries yet ✨",
+                  "لا توجد يوميات بعد ✨",
                   style: TextStyle(fontSize: 16, color: Colors.black54),
                 ),
               ),

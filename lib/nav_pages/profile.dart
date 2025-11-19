@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/login/signin_screen.dart';
 import 'dart:ui' as ui;
-// 1. UNCOMMENT THIS LINE AFTER RUNNING `flutter pub add image_picker`:
-// import 'package:image_picker/image_picker.dart';
 
 class Profile extends StatelessWidget {
   final String? userEmail;
@@ -34,7 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String currentGender = 'ذكر';
   bool notificationEnabled = true;
-  String? profilePictureUrl; // Holds the URL of the user's profile picture
+  // profilePictureUrl removed
 
   bool isLoading = true;
   String userId = '';
@@ -93,8 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           currentGender = response['gender'] ?? 'ذكر';
           notificationEnabled = response['notifications_enabled'] ?? true;
-          profilePictureUrl =
-              response['profile_picture_url'] as String?; // Loading URL
+          // profile_picture_url loading removed
         });
       }
 
@@ -105,62 +102,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) setState(() => isLoading = false);
     }
   }
-
-  // 🔹 Image Picker and Supabase Storage Upload (Real Implementation)
-  Future<void> _pickAndUploadImage() async {
-    if (userId.isEmpty) return;
-
-    // 2. UNCOMMENT THESE LINES AFTER RUNNING `flutter pub add image_picker`:
-    // final picker = ImagePicker();
-    // XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    // if (image == null) return;
-
-    // ⚠️ Placeholder warning: This must be removed after uncommenting the real logic above.
-    _showSnackbar(
-      'يرجى إضافة مكتبة image_picker ثم إعادة التشغيل.',
-      Colors.orange,
-    );
-
-    setState(() => isLoading = true);
-
-    // Simulation (Replace with real file upload if image_picker is used):
-    final publicUrl = 'https://placehold.co/100x100/60DD70/white?text=User+Pic';
-
-    // If you uncomment the real logic, you would replace the above line with:
-    // final publicUrl = await _uploadImageToSupabase(image!);
-
-    // 3. Save the public URL to the user profile
-    try {
-      await supabase
-          .from('users')
-          .update({'profile_picture_url': publicUrl})
-          .eq('id', userId);
-
-      _showSnackbar('تم تحديث الصورة بنجاح!', Colors.green);
-      setState(() {
-        profilePictureUrl = publicUrl;
-      });
-    } catch (e) {
-      _showSnackbar('فشل حفظ رابط الصورة.', Colors.red);
-      debugPrint('Image Save Error: $e');
-    } finally {
-      if (mounted) setState(() => isLoading = false);
-    }
-  }
-
-  // 🔹 [FOR REAL IMPLEMENTATION]: This method handles the actual upload to Supabase Storage.
-  // Future<String> _uploadImageToSupabase(XFile image) async {
-  //   final imageFile = File(image.path);
-  //   final bytes = await imageFile.readAsBytes();
-  //   final fileName = 'profile/${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-  //   // Upload file to the 'avatars' bucket (must be created in Supabase Storage)
-  //   final uploadResponse = await supabase.storage.from('avatars').uploadBinary(fileName, bytes);
-  //
-  //   // Get the public URL for the image
-  //   final publicUrl = supabase.storage.from('avatars').getPublicUrl(uploadResponse.data!.path);
-  //   return publicUrl;
-  // }
 
   // 🔹 Save Changes to Supabase
   Future<void> _saveProfile() async {
@@ -190,6 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'age': int.tryParse(ageController.text.trim()),
         'gender': currentGender,
         'notifications_enabled': notificationEnabled,
+        // profile_picture_url saving removed
       };
 
       // Use upsert to insert/update the user record
@@ -345,48 +287,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          // 📸 Profile Picture Widget (Tappable)
-                          GestureDetector(
-                            onTap: _pickAndUploadImage,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                CircleAvatar(
-                                  radius: 50,
-                                  backgroundColor: Colors.teal,
-                                  backgroundImage: profilePictureUrl != null
-                                      ? NetworkImage(profilePictureUrl!)
-                                            as ImageProvider<Object>?
-                                      : null,
-                                  child: profilePictureUrl == null
-                                      ? const Icon(
-                                          Icons.person,
-                                          size: 40,
-                                          color: Colors.white,
-                                        )
-                                      : null,
-                                ),
-                                // Edit Icon Overlay
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.grey.shade300,
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.edit,
-                                      color: Color(0xFF26A69A),
-                                      size: 18,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                          // 📸 STATIC Profile Picture
+                          const CircleAvatar(
+                            radius: 50,
+                            backgroundColor: Color(0xFF26A69A), // Theme color
+                            child: Icon(
+                              Icons.person,
+                              size: 40,
+                              color: Colors.white,
                             ),
                           ),
 

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/login/auth_service.dart';
 
-// NOTE: TaskUtility logic is now INLINE in home.dart for compilation stability.
-
 class TasksScreen extends StatefulWidget {
-  const TasksScreen({super.key});
+  final VoidCallback?
+  onTaskUpdated; // 💡 Callback for Home Page synchronization
+  const TasksScreen({super.key, this.onTaskUpdated});
 
   @override
   State<TasksScreen> createState() => _TasksScreenState();
@@ -44,7 +44,7 @@ class _TasksScreenState extends State<TasksScreen> {
         isLoading = false;
       });
     } catch (e) {
-      print('❌ Error loading tasks: $e');
+      print('❌ خطأ في تحميل المهام: $e');
       setState(() => isLoading = false);
     }
   }
@@ -70,8 +70,9 @@ class _TasksScreenState extends State<TasksScreen> {
       });
 
       await _loadTasks();
+      widget.onTaskUpdated?.call(); // 💡 Signal Home Page to update progress
     } catch (e) {
-      print('❌ Error adding task: $e');
+      print('❌ خطأ في إضافة المهمة: $e');
     }
   }
 
@@ -80,7 +81,7 @@ class _TasksScreenState extends State<TasksScreen> {
     final userId = authService.getCurrentUserId();
 
     if (userId == null) {
-      print('❌ Error: Cannot toggle task completion. User ID is null.');
+      print('❌ خطأ: لا يمكن تبديل حالة المهمة. معرّف المستخدم غير موجود.');
       return;
     }
 
@@ -92,8 +93,9 @@ class _TasksScreenState extends State<TasksScreen> {
           .eq('id', userId);
 
       await _loadTasks();
+      widget.onTaskUpdated?.call(); // 💡 Signal Home Page to update progress
     } catch (e) {
-      print('❌ Error updating task: $e');
+      print('❌ خطأ أثناء تحديث المهمة: $e');
     }
   }
 
@@ -103,15 +105,15 @@ class _TasksScreenState extends State<TasksScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add New Task'),
+        title: const Text('أضف مهمة جديدة'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(hintText: 'Write the task here'),
+          decoration: const InputDecoration(hintText: 'اكتب المهمة هنا'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -120,7 +122,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 Navigator.pop(ctx);
               }
             },
-            child: const Text('Save'),
+            child: const Text('حفظ'),
           ),
         ],
       ),
@@ -134,7 +136,7 @@ class _TasksScreenState extends State<TasksScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(
-          'Tasks',
+          'المهام',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF5E9E92),

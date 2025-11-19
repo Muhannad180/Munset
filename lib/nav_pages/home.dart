@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'dart:io';
-import 'package:test1/main.dart';
-// ❌ IMPORT REMOVED: The problematic 'package:test1/tasks.dart' import is gone.
+import 'package:test1/main.dart'; // Assumes this provides 'supabase' client
 import 'dart:ui' as ui;
 
 class HomePage extends StatefulWidget {
+  // Callback is used to trigger reloads from other pages (Journal/Tasks)
   final VoidCallback? onReload;
   const HomePage({super.key, this.onReload});
 
@@ -16,7 +16,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   DateTime _selectedDate = DateTime.now();
-  String _locale = 'ar';
+  String _locale = 'ar'; // Set Arabic as default locale for display
   String firstName = '';
 
   // 🔹 Data Variables
@@ -25,7 +25,7 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> userTasks = [];
   bool isLoadingData = true;
 
-  // 🔹 CBT Advice List (Part 2 Data)
+  // 🔹 Part 2 Data (CBT Advice List)
   final List<Map<String, String>> cbtAdvices = [
     {
       'title': 'تواصل مع الطبيعة',
@@ -61,6 +61,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _setLocale();
     _loadAllHomeData();
+    // Select a random CBT advice on initialization
     currentAdvice = (cbtAdvices..shuffle()).first;
   }
 
@@ -69,7 +70,7 @@ class _HomePageState extends State<HomePage> {
       _locale = Platform.localeName;
       await initializeDateFormatting(_locale, null);
     } catch (e) {
-      _locale = 'ar';
+      _locale = 'ar'; // Fallback to Arabic if localeName is not supported
       await initializeDateFormatting(_locale, null);
     }
     setState(() {});
@@ -81,7 +82,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // 🔹 Global method to load all home screen data
+  // 🔹 Global method to load all home screen data (Called by external pages via callback)
   Future<void> _loadAllHomeData() async {
     setState(() => isLoadingData = true);
     await _loadUserData();
@@ -130,10 +131,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ===============================================
-  // 💡 START OF INLINE TASK UTILITY METHODS (Part 3)
+  // 💡 INLINE TASK UTILITY METHODS (Part 3 Logic)
   // -----------------------------------------------
 
-  // 🔹 INLINE: Calculate Task Completion Percentage (Replaces TaskUtility.calculateTaskProgress)
+  // 🔹 INLINE: Calculate Task Completion Percentage
   Future<double> _calculateTaskProgress(String? userId) async {
     if (userId == null) return 0.0;
 
@@ -161,7 +162,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // 🔹 INLINE: Load Task List (Replaces TaskUtility.loadTasks)
+  // 🔹 INLINE: Load Task List
   Future<List<Map<String, dynamic>>> _loadTasksList(String? userId) async {
     if (userId == null) return [];
     try {
@@ -183,10 +184,10 @@ class _HomePageState extends State<HomePage> {
 
     if (userId == null) return;
 
-    // 💡 FIX: Use INLINE method (was TaskUtility.calculateTaskProgress)
+    // Use INLINE method to calculate progress
     final progress = await _calculateTaskProgress(userId);
 
-    // 💡 FIX: Use INLINE method (was TaskUtility.loadTasks)
+    // Use INLINE method to load tasks
     final tasksList = await _loadTasksList(userId);
 
     setState(() {
@@ -247,6 +248,7 @@ class _HomePageState extends State<HomePage> {
           title: Align(
             alignment: Alignment.centerRight,
             child: Text(
+              // "مرحبا [First Name]"
               '👋 مرحبا $firstName',
               style: const TextStyle(
                 color: Colors.black,
@@ -263,7 +265,7 @@ class _HomePageState extends State<HomePage> {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      // 🔹 RESTORED: Calendar Widget
+                      // 🗓️ CALENDAR WIDGET (Restored)
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -336,7 +338,6 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
 
-                      // 🔹 END RESTORED: Calendar Widget
                       const SizedBox(height: 20),
 
                       // 🔹 Part 1: Latest Journal Entry
