@@ -63,7 +63,7 @@ class _JournalState extends State<Journal> {
     _loadJournals();
   }
 
-  // 🔹 Load journals from Supabase
+  // 🔹 جلب اليوميات من Supabase
   Future<void> _loadJournals() async {
     final userId = authService.getCurrentUserId();
     if (userId == null) return;
@@ -73,54 +73,56 @@ class _JournalState extends State<Journal> {
           .from('journals')
           .select()
           .eq('id', userId)
-          .order('journal_id', ascending: false);
+          .order('journal_id', ascending: false); // ترتيب حسب اليومية
 
       setState(() {
         journals = response;
         isLoading = false;
       });
     } catch (e) {
-      print('❌ خطأ في تحميل اليوميات: $e');
+      print('خطأ في تحميل اليوميات');
       setState(() => isLoading = false);
     }
   }
 
-  // 🔹 Save journal to Supabase (FIXED LOGIC)
+  // 🔹 حفظ اليومية في Supabase
   Future<void> _saveJournal(
-    String moodEmoji,
+    String mood,
     String moodName,
     String description,
   ) async {
     final userId = authService.getCurrentUserId();
     if (userId == null) return;
 
-    // We omit 'journal_id' here, trusting the database to auto-generate it.
+    int lastJournal = 0;
+    if (journals.isNotEmpty) {
+      lastJournal = journals[0]['journal_id'] ?? 0;
+    }
+
+    int journalId = lastJournal + 1;
 
     try {
-      // 💡 Supabase insert command
-      final List<Map<String, dynamic>> response =
-          await supabase.from('journals').insert({
-            'id': userId,
-            'mode': moodEmoji,
-            'mode_name': moodName,
-            'mode_description': description,
-            'mode_date': DateTime.now().toIso8601String(),
-          }).select();
-
-      final savedEntry = response.first;
-
-      // Add it locally after saving
-      setState(() {
-        journals.insert(0, savedEntry); // Use the data returned from DB
-        currentIndex = 0;
+      await supabase.from('journals').insert({
+        'id': userId,
+        'journal_id': journalId,
+        'mode': mood,
+        'mode_name': moodName,
+        'mode_description': description,
+        'mode_date': DateTime.now().toIso8601String(),
       });
 
-      // 💡 Call the callback function to trigger HomePage reload
-      widget.onJournalSaved?.call();
+      setState(() {
+        journals.insert(0, {
+          'journal_id': journalId,
+          'mode': mood,
+          'mode_name': moodName,
+          'mode_description': description,
+          'mode_date': DateTime.now().toIso8601String(),
+        });
+        currentIndex = 0;
+      });
     } catch (e) {
-      // If save fails for any reason (e.g., connection lost), print the error
-      print('❌ خطأ أثناء الحفظ (Save Failed): ${e.toString()}');
-      _loadJournals();
+      print('❌ خطأ أثناء الحفظ: $e');
     }
   }
 
