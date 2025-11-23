@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:test1/welcome_page.dart';
+import 'package:test1/features/onboarding/presentation/screens/welcome_page.dart';
 
 void main() async {
   Gemini.init(apiKey: 'AIzaSyAcPTCI5CX7ewXrCmyl35I-ptu4n6ixyjI');
