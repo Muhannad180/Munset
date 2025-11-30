@@ -34,6 +34,95 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
   ChatUser aiUser = ChatUser(id: '1', firstName: 'AI');
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initSession();
+    });
+  }
+
+  Future<void> _initSession() async {
+    // Show a temporary AI "Thinking..." message while we initialize.
+    final loadingMsg = ChatMessage(
+      user: aiUser,
+      createdAt: DateTime.now(),
+      text: "Thinking...",
+    );
+    setState(() {
+      messages = [loadingMsg, ...messages];
+    });
+
+    // Get Supabase user ID (or fallback)
+    String userId = "2f54534a-4fb0-493e-a514-c1ac08071f4d";
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) userId = user.id;
+    } catch (e) {
+      debugPrint("Supabase auth fetch failed: $e");
+    }
+
+    try {
+      final startUri = Uri.parse(_apiUrl.replaceFirst('/chat', '/start-session'));
+      final resp = await http.post(
+        startUri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId}),
+      ).timeout(const Duration(seconds: 30));
+
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        final opening = data['opening_message'] ?? data['openingMessage'] ?? '';
+        final sid = data['session_id'] ?? data['sessionId'];
+        if (_sessionId == null && sid != null) {
+          _sessionId = sid is int ? sid : int.tryParse(sid.toString());
+          debugPrint("🔹 Assigned new session ID: $_sessionId");
+        }
+
+        setState(() {
+          messages.removeWhere((m) => m == loadingMsg);
+          messages = [
+            ChatMessage(
+              user: aiUser,
+              createdAt: DateTime.now(),
+              text: opening.isNotEmpty
+                  ? opening
+                  : "Hi — I'm here to help. How are you feeling today?",
+            ),
+            ...messages
+          ];
+        });
+      } else {
+        setState(() {
+          messages.removeWhere((m) => m == loadingMsg);
+          messages = [
+            ChatMessage(
+              user: aiUser,
+              createdAt: DateTime.now(),
+              text: "Hi — I'm here to help. How are you feeling today?",
+            ),
+            ...messages
+          ];
+        });
+        debugPrint('Start-session error ${resp.statusCode}: ${resp.body}');
+      }
+    } catch (e) {
+      setState(() {
+        messages.removeWhere((m) => m == loadingMsg);
+        messages = [
+          ChatMessage(
+            user: aiUser,
+            createdAt: DateTime.now(),
+            text: "Hi — I'm here to help. How are you feeling today?",
+          ),
+          ...messages
+        ];
+      });
+      debugPrint('Network/start-session error: $e');
+    }
+  }
+
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(body: _buildUI());
   }
