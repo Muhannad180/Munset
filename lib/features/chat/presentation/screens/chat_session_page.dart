@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:http/http.dart' as http;
+import 'dart:async';
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ChatSessionPage extends StatefulWidget {
   final String sessionTitle;
   final String sessionId;
+  final int sessionNumber;
 
   const ChatSessionPage({
     Key? key,
     required this.sessionTitle,
     required this.sessionId,
+    required this.sessionNumber,
   }) : super(key: key);
 
   @override
@@ -29,13 +32,19 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
   );
 
   static const String _defaultGreeting =
-      "Hi — I'm here to help. How are you feeling today?";
-  static const String _thinkingText = "Thinking...";
+      "أهلاً! كيف يمكنني مساعدتك اليوم؟";
+  static const String _thinkingText = "يكتب";
 
   List<ChatMessage> messages = [];
 
   ChatUser currentUser = ChatUser(id: '0', firstName: 'User');
   ChatUser aiUser = ChatUser(id: '1', firstName: 'AI');
+
+  // For "Thinking..." animation and disabling input
+  bool _isAwaitingResponse = false;
+  Timer? _thinkingTimer;
+  ChatMessage? _thinkingMessage;
+  int _thinkingDotCount = 1;
 
   @override
   void initState() {
@@ -43,6 +52,12 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initSession();
     });
+  }
+
+  @override
+  void dispose() {
+    _thinkingTimer?.cancel();
+    super.dispose();
   }
 
   /// Helper to get Supabase user ID or fallback.
@@ -60,36 +75,67 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     return userId;
   }
 
-  /// Helper to create a "Thinking..." message from the AI.
-  ChatMessage _buildThinkingMessage() {
-    return ChatMessage(
+  /// Start the animated "Thinking..." message and disable input.
+  void _startThinking() {
+    // Only one thinking message at a time
+    _thinkingTimer?.cancel();
+    _thinkingMessage = null;
+    _thinkingDotCount = 1;
+    _isAwaitingResponse = true;
+
+    final msg = ChatMessage(
       user: aiUser,
       createdAt: DateTime.now(),
-      text: _thinkingText,
+      text: '$_thinkingText.',
     );
+    _thinkingMessage = msg;
+
+    setState(() {
+      messages = [msg, ...messages];
+    });
+
+    _thinkingTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (!mounted || _thinkingMessage == null) return;
+
+      setState(() {
+        _thinkingDotCount = (_thinkingDotCount % 3) + 1; // 1 → 2 → 3 → 1
+        final index = messages.indexOf(_thinkingMessage!);
+        if (index == -1) return;
+
+        final updated = ChatMessage(
+          user: aiUser,
+          createdAt: _thinkingMessage!.createdAt,
+          text: '${'.' * _thinkingDotCount}$_thinkingText',
+        );
+        messages[index] = updated;
+        _thinkingMessage = updated;
+      });
+    });
   }
 
-  /// Helper to remove a specific loading message and prepend an AI reply.
-  void _replaceThinkingWithAi(ChatMessage loadingMsg, String text) {
+  /// Stop the animation, show AI reply, and re-enable input.
+  void _stopThinkingAndShowAi(String text) {
+    _thinkingTimer?.cancel();
+    _thinkingTimer = null;
+    _isAwaitingResponse = false;
+
     setState(() {
-      messages.remove(loadingMsg);
-      messages = [
-        ChatMessage(
-          user: aiUser,
-          createdAt: DateTime.now(),
-          text: text,
-        ),
-        ...messages,
-      ];
+      if (_thinkingMessage != null) {
+        messages.remove(_thinkingMessage);
+      }
+      final aiMessage = ChatMessage(
+        user: aiUser,
+        createdAt: DateTime.now(),
+        text: text,
+      );
+      messages = [aiMessage, ...messages];
+      _thinkingMessage = null;
     });
   }
 
   Future<void> _initSession() async {
-    // Show a temporary AI "Thinking..." message while we initialize.
-    final loadingMsg = _buildThinkingMessage();
-    setState(() {
-      messages = [loadingMsg, ...messages];
-    });
+    // Show animated "Thinking..." while session initializes.
+    _startThinking();
 
     final userId = _getUserId();
 
@@ -100,15 +146,14 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
           .post(
             startUri,
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'user_id': userId}),
+            body: jsonEncode({'user_id': userId, 'session_number': widget.sessionNumber}),
           )
           .timeout(const Duration(seconds: 30));
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
-        final opening = data['opening_message'] ??
-            data['openingMessage'] ??
-            '';
+        final opening =
+            data['opening_message'] ?? data['openingMessage'] ?? '';
         final sid = data['session_id'] ?? data['sessionId'];
         if (_sessionId == null && sid != null) {
           _sessionId = sid is int ? sid : int.tryParse(sid.toString());
@@ -116,13 +161,13 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
         }
 
         final text = opening.isNotEmpty ? opening : _defaultGreeting;
-        _replaceThinkingWithAi(loadingMsg, text);
+        _stopThinkingAndShowAi(text);
       } else {
-        _replaceThinkingWithAi(loadingMsg, _defaultGreeting);
+        _stopThinkingAndShowAi(_defaultGreeting);
         debugPrint('Start-session error ${resp.statusCode}: ${resp.body}');
       }
     } catch (e) {
-      _replaceThinkingWithAi(loadingMsg, _defaultGreeting);
+      _stopThinkingAndShowAi(_defaultGreeting);
       debugPrint('Network/start-session error: $e');
     }
   }
@@ -137,6 +182,9 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
       currentUser: currentUser,
       onSend: _sendMessage,
       messages: messages,
+      inputOptions: InputOptions(
+        inputDisabled: _isAwaitingResponse,
+      ),
     );
   }
 
@@ -146,11 +194,8 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
       messages = [chatMessage, ...messages];
     });
 
-    // Add temporary AI "Thinking..." message
-    final loadingMsg = _buildThinkingMessage();
-    setState(() {
-      messages = [loadingMsg, ...messages];
-    });
+    // Start "Thinking..." animation and disable input
+    _startThinking();
 
     final userId = _getUserId();
 
@@ -184,16 +229,16 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
           debugPrint("🔹 Assigned new session ID: $_sessionId");
         }
 
-        _replaceThinkingWithAi(loadingMsg, reply);
+        _stopThinkingAndShowAi(reply);
       } else {
         final errorText =
             "Error: server returned ${response.statusCode}\n${response.body}";
-        _replaceThinkingWithAi(loadingMsg, errorText);
+        _stopThinkingAndShowAi(errorText);
         debugPrint("Server error: ${response.statusCode} - ${response.body}");
       }
     } catch (e) {
       final errorText = "Network error: $e";
-      _replaceThinkingWithAi(loadingMsg, errorText);
+      _stopThinkingAndShowAi(errorText);
       debugPrint("Network error when calling backend: $e");
     }
   }
