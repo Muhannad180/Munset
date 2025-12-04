@@ -4,17 +4,20 @@ import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:ui' as ui;
+import 'package:google_fonts/google_fonts.dart'; // تأكد من وجود المكتبة
 
 class ChatSessionPage extends StatefulWidget {
   final String sessionTitle;
   final String sessionId;
-  final int sessionNumber;
+  // أزلنا sessionNumber إذا لم يكن مستخدماً في الباك إند حالياً أو جعله اختيارياً
+  final int? sessionNumber; 
 
   const ChatSessionPage({
     Key? key,
     required this.sessionTitle,
     required this.sessionId,
-    required this.sessionNumber,
+    this.sessionNumber,
   }) : super(key: key);
 
   @override
@@ -22,25 +25,24 @@ class ChatSessionPage extends StatefulWidget {
 }
 
 class _ChatSessionPageState extends State<ChatSessionPage> {
-  // store active session ID
   int? _sessionId;
+  
+  // ألوان الثيم
+  final Color primaryColor = const Color(0xFF5E9E92);
+  final Color bgColor = const Color(0xFFF8F9FA);
 
-  // Reads API URL from compile-time environment or falls back to Render backend.
   static const String _apiUrl = String.fromEnvironment(
     'API_URL',
     defaultValue: 'https://munset-backend.onrender.com/chat',
   );
 
-  static const String _defaultGreeting =
-      "أهلاً! كيف يمكنني مساعدتك اليوم؟";
+  static const String _defaultGreeting = "أهلاً! كيف يمكنني مساعدتك اليوم؟";
   static const String _thinkingText = "يكتب";
 
   List<ChatMessage> messages = [];
+  ChatUser currentUser = ChatUser(id: '0', firstName: 'أنا');
+  ChatUser aiUser = ChatUser(id: '1', firstName: 'منصت', profileImage: "assets/images/ai_avatar.png"); // يمكنك وضع صورة للأفاتار هنا
 
-  ChatUser currentUser = ChatUser(id: '0', firstName: 'User');
-  ChatUser aiUser = ChatUser(id: '1', firstName: 'AI');
-
-  // For "Thinking..." animation and disabling input
   bool _isAwaitingResponse = false;
   Timer? _thinkingTimer;
   ChatMessage? _thinkingMessage;
@@ -60,24 +62,18 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     super.dispose();
   }
 
-  /// Helper to get Supabase user ID or fallback.
   String _getUserId() {
-    String userId =
-        "2f54534a-4fb0-493e-a514-c1ac08071f4d"; // fallback UUID TODO: delete and try to fetch from database
+    String userId = "2f54534a-4fb0-493e-a514-c1ac08071f4d"; 
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) {
-        userId = user.id;
-      }
+      if (user != null) userId = user.id;
     } catch (e) {
       debugPrint("Supabase auth fetch failed: $e");
     }
     return userId;
   }
 
-  /// Start the animated "Thinking..." message and disable input.
   void _startThinking() {
-    // Only one thinking message at a time
     _thinkingTimer?.cancel();
     _thinkingMessage = null;
     _thinkingDotCount = 1;
@@ -96,12 +92,10 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
 
     _thinkingTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (!mounted || _thinkingMessage == null) return;
-
       setState(() {
-        _thinkingDotCount = (_thinkingDotCount % 3) + 1; // 1 → 2 → 3 → 1
+        _thinkingDotCount = (_thinkingDotCount % 3) + 1;
         final index = messages.indexOf(_thinkingMessage!);
         if (index == -1) return;
-
         final updated = ChatMessage(
           user: aiUser,
           createdAt: _thinkingMessage!.createdAt,
@@ -113,16 +107,12 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     });
   }
 
-  /// Stop the animation, show AI reply, and re-enable input.
   void _stopThinkingAndShowAi(String text) {
     _thinkingTimer?.cancel();
     _thinkingTimer = null;
     _isAwaitingResponse = false;
-
     setState(() {
-      if (_thinkingMessage != null) {
-        messages.remove(_thinkingMessage);
-      }
+      if (_thinkingMessage != null) messages.remove(_thinkingMessage);
       final aiMessage = ChatMessage(
         user: aiUser,
         createdAt: DateTime.now(),
@@ -134,112 +124,171 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
   }
 
   Future<void> _initSession() async {
-    // Show animated "Thinking..." while session initializes.
     _startThinking();
-
     final userId = _getUserId();
-
     try {
-      final startUri =
-          Uri.parse(_apiUrl.replaceFirst('/chat', '/start-session'));
-      final resp = await http
-          .post(
-            startUri,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'user_id': userId, 'session_number': widget.sessionNumber}),
-          )
-          .timeout(const Duration(seconds: 30));
+      final startUri = Uri.parse(_apiUrl.replaceFirst('/chat', '/start-session'));
+      final body = {'user_id': userId};
+      if (widget.sessionNumber != null) body['session_number'] = widget.sessionNumber! as String;
+
+      final resp = await http.post(
+        startUri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 30));
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
-        final opening =
-            data['opening_message'] ?? data['openingMessage'] ?? '';
+        final opening = data['opening_message'] ?? data['openingMessage'] ?? '';
         final sid = data['session_id'] ?? data['sessionId'];
         if (_sessionId == null && sid != null) {
           _sessionId = sid is int ? sid : int.tryParse(sid.toString());
-          debugPrint("🔹 Assigned new session ID: $_sessionId");
         }
-
-        final text = opening.isNotEmpty ? opening : _defaultGreeting;
-        _stopThinkingAndShowAi(text);
+        _stopThinkingAndShowAi(opening.isNotEmpty ? opening : _defaultGreeting);
       } else {
         _stopThinkingAndShowAi(_defaultGreeting);
-        debugPrint('Start-session error ${resp.statusCode}: ${resp.body}');
       }
     } catch (e) {
       _stopThinkingAndShowAi(_defaultGreeting);
-      debugPrint('Network/start-session error: $e');
     }
+  }
+
+  // 🚪 دالة الخروج (إنهاء الجلسة)
+  void _confirmExitSession() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: AlertDialog(
+          title: Text("إنهاء الجلسة", style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
+          content: Text("هل تريد حقاً إنهاء هذه الجلسة والخروج؟", style: GoogleFonts.cairo()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text("إلغاء", style: GoogleFonts.cairo(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // هنا يمكن إضافة كود لحفظ التلخيص إذا وجد
+                Navigator.pop(ctx); // إغلاق الـ Dialog
+                Navigator.pop(context); // الخروج من الصفحة
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: Text("خروج", style: GoogleFonts.cairo(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(body: _buildUI());
-  }
-
-  Widget _buildUI() {
-    return DashChat(
-      currentUser: currentUser,
-      onSend: _sendMessage,
-      messages: messages,
-      inputOptions: InputOptions(
-        inputDisabled: _isAwaitingResponse,
+    return Directionality(
+      textDirection: ui.TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: bgColor,
+        // 1. إضافة AppBar
+        appBar: AppBar(
+          backgroundColor: primaryColor,
+          title: Text(
+            widget.sessionTitle,
+            style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          centerTitle: true,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios),
+            onPressed: () => Navigator.pop(context),
+          ),
+          actions: [
+            // زر الخروج
+            IconButton(
+              icon: const Icon(Icons.exit_to_app, color: Colors.white),
+              tooltip: "إنهاء الجلسة",
+              onPressed: _confirmExitSession,
+            ),
+          ],
+        ),
+        body: DashChat(
+          currentUser: currentUser,
+          onSend: _sendMessage,
+          messages: messages,
+          inputOptions: InputOptions(
+            inputDisabled: _isAwaitingResponse,
+            inputDecoration: InputDecoration(
+              hintText: "اكتب رسالتك هنا...",
+              hintStyle: GoogleFonts.cairo(color: Colors.grey),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(25),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            sendButtonBuilder: (onSend) {
+              return IconButton(
+                icon: Icon(Icons.send_rounded, color: primaryColor, size: 30),
+                onPressed: onSend,
+              );
+            },
+          ),
+          messageOptions: MessageOptions(
+            showOtherUsersAvatar: false,
+            showCurrentUserAvatar: false,
+            // تنسيق رسائل المستخدم (أخضر تركواز)
+            currentUserContainerColor: primaryColor,
+            currentUserTextColor: Colors.white,
+            // تنسيق رسائل الـ AI (أبيض/رمادي)
+            containerColor: Colors.white,
+            textColor: Colors.black87,
+            messageTextBuilder: (message, previousMessage, nextMessage) {
+              return Text(
+                message.text,
+                style: GoogleFonts.cairo(
+                  color: message.user.id == currentUser.id ? Colors.white : Colors.black87,
+                  fontSize: 16,
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
 
   void _sendMessage(ChatMessage chatMessage) async {
-    // Add the user message to UI
     setState(() {
       messages = [chatMessage, ...messages];
     });
-
-    // Start "Thinking..." animation and disable input
     _startThinking();
-
     final userId = _getUserId();
 
     try {
-      final uri = Uri.parse(_apiUrl);
-
-      final response = await http
-          .post(
-            uri,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'user_id': userId,
-              // send stored session id if available, else widget.sessionId, else null
-              'session_id': _sessionId?.toString() ??
-                  (widget.sessionId.isEmpty
-                      ? null
-                      : int.tryParse(widget.sessionId)),
-              'message': chatMessage.text,
-            }),
-          )
-          .timeout(const Duration(seconds: 30));
+      final response = await http.post(
+        Uri.parse(_apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_id': userId,
+          'session_id': _sessionId?.toString() ?? (widget.sessionId.isEmpty ? null : int.tryParse(widget.sessionId)),
+          'message': chatMessage.text,
+        }),
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final reply = data['reply'] ?? "No response from server.";
-
-        // If this is the first message, capture the session ID from backend
+        final reply = data['reply'] ?? "لا يوجد رد.";
         if (_sessionId == null && data['session_id'] != null) {
           final sid = data['session_id'];
           _sessionId = sid is int ? sid : int.tryParse(sid.toString());
-          debugPrint("🔹 Assigned new session ID: $_sessionId");
         }
-
         _stopThinkingAndShowAi(reply);
       } else {
-        final errorText =
-            "Error: server returned ${response.statusCode}\n${response.body}";
-        _stopThinkingAndShowAi(errorText);
-        debugPrint("Server error: ${response.statusCode} - ${response.body}");
+        _stopThinkingAndShowAi("خطأ في الخادم: ${response.statusCode}");
       }
     } catch (e) {
-      final errorText = "Network error: $e";
-      _stopThinkingAndShowAi(errorText);
-      debugPrint("Network error when calling backend: $e");
+      _stopThinkingAndShowAi("خطأ في الاتصال.");
     }
   }
 }

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/features/auth/presentation/screens/signup_screen.dart';
+import 'package:test1/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:test1/shared/navigation/main_navigation.dart';
 import 'package:test1/data/services/auth_service.dart';
-import 'package:test1/features/assessment/presentation/screens/start_screen.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -12,318 +13,119 @@ class SignInScreen extends StatefulWidget {
   State<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> {
+class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderStateMixin {
   final authService = AuthService();
   final supabase = Supabase.instance.client;
-  final usernameOrEmailController =
-      TextEditingController(); // Unified controller
+  final usernameOrEmailController = TextEditingController();
   final passwordController = TextEditingController();
   bool _obscurePassword = true;
+  final Color primaryColor = const Color(0xFF5E9E92);
 
-  // Helper to check if string looks like an email
-  bool _isEmail(String input) {
-    // Simple regex check for email pattern
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(input);
+  late AnimationController _btnController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _btnController = AnimationController(vsync: this, duration: const Duration(milliseconds: 100));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(_btnController);
   }
 
-  // 🔹 Step 1: Find Email if Username is Provided
+  @override
+  void dispose() {
+    _btnController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _animateButton(VoidCallback onComplete) async {
+    await _btnController.forward();
+    await _btnController.reverse();
+    onComplete();
+  }
+
+  bool _isEmail(String input) => RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(input);
+
   Future<String?> _getEmailByUsername(String username) async {
     try {
-      final response = await supabase
-          .from('users')
-          .select('email')
-          .eq('username', username)
-          .maybeSingle();
-
+      final response = await supabase.from('users').select('email').eq('username', username).maybeSingle();
       return response?['email'] as String?;
-    } catch (e) {
-      debugPrint('❌ Error finding email by username: $e');
-      return null;
-    }
+    } catch (e) { return null; }
   }
 
   void login() async {
     final input = usernameOrEmailController.text.trim();
     final password = passwordController.text.trim();
-
     String emailToAuthenticate;
 
-    // 1. Determine if input is Email or Username
+    if (input.isEmpty || password.isEmpty) { _showMsg("يرجى ملء جميع الحقول", Colors.orange); return; }
+
     if (_isEmail(input)) {
       emailToAuthenticate = input;
     } else {
-      // Input is likely a username, query the database for the corresponding email
       final foundEmail = await _getEmailByUsername(input);
-      if (foundEmail == null) {
-        _showLoginError("اسم المستخدم أو البريد الإلكتروني غير موجود.");
-        return;
-      }
+      if (foundEmail == null) { _showMsg("اسم المستخدم غير موجود", Colors.red); return; }
       emailToAuthenticate = foundEmail;
     }
 
-    // 2. Attempt Authentication with the derived email
     try {
-      final response = await authService.signInWithEmailPassword(
-        emailToAuthenticate, // Use the determined email
-        password,
-      );
-      final user = response.user;
-
-      if (user == null) throw Exception("فشل تسجيل الدخول");
-
-      // التحقق إذا المستخدم أنهى اختبار PHQ-9
-      final hasDoneTest = await authService.hasCompletedPhq9(user.id);
-
-      if (!mounted) return;
-
-      if (hasDoneTest) {
-        // المستخدم أنهى الاختبار
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => MainNavigation()),
-        );
-      } else {
-        // أول مرة يدخل
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const StartScreen()),
-        );
+      final response = await authService.signInWithEmailPassword(emailToAuthenticate, password);
+      if (response.user != null && mounted) {
+        Navigator.pushReplacement(context, PageRouteBuilder(pageBuilder: (_, __, ___) => MainNavigation(), transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c)));
       }
-    } catch (e) {
-      _showLoginError("كلمة المرور غير صحيحة.");
-    }
+    } catch (e) { _showMsg("بيانات الدخول غير صحيحة", Colors.red); }
   }
 
-  void _showLoginError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message, textAlign: TextAlign.right),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    usernameOrEmailController.dispose();
-    passwordController.dispose();
-    super.dispose();
+  void _showMsg(String msg, Color color) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg, style: GoogleFonts.cairo()), backgroundColor: color));
   }
 
   @override
   Widget build(BuildContext context) {
-    const double topGradientHeight = 260;
-    const double wavesHeight = 160;
-
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F5F5),
+        backgroundColor: const Color(0xFFF8F9FA),
         body: Column(
           children: [
-            // الجزء العلوي
             SizedBox(
-              height: topGradientHeight,
+              height: 260,
               child: Stack(
                 children: [
-                  CustomPaint(
-                    size: const Size(double.infinity, topGradientHeight),
-                    painter: _TopGradientPainter(),
-                  ),
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 20),
-                      child: Text(
-                        'مُنصت',
-                        style: TextStyle(
-                          fontSize: 36,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
+                  CustomPaint(size: const Size(double.infinity, 260), painter: _HeaderPainter(color: primaryColor)),
+                  Center(child: Padding(padding: const EdgeInsets.only(top: 40), child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.psychology, size: 60, color: Colors.white),
+                    const SizedBox(height: 10),
+                    Text('مُنصت', style: GoogleFonts.cairo(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold)),
+                  ]))),
                 ],
               ),
             ),
-
-            // الجزء السفلي
             Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(60),
-                    topRight: Radius.circular(60),
-                  ),
-                ),
-                child: Stack(
-                  clipBehavior: Clip.none,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
                   children: [
-                    // الموجات
-                    Positioned(
-                      top: -wavesHeight + 20,
-                      left: 0,
-                      right: 0,
-                      child: SizedBox(
-                        height: wavesHeight,
-                        child: CustomPaint(
-                          size: const Size(double.infinity, wavesHeight),
-                          painter: _WavesPainter(),
-                        ),
+                    const SizedBox(height: 10),
+                    Text('مرحباً بعودتك', style: GoogleFonts.cairo(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
+                    const SizedBox(height: 30),
+                    _buildTextField(controller: usernameOrEmailController, label: 'اسم المستخدم أو البريد', icon: Icons.person_outline),
+                    const SizedBox(height: 16),
+                    _buildTextField(controller: passwordController, label: 'كلمة المرور', icon: Icons.lock_outline, isPass: true, obscure: _obscurePassword, onEyePressed: () => setState(() => _obscurePassword = !_obscurePassword)),
+                    Align(alignment: Alignment.centerLeft, child: TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())), child: Text('نسيت كلمة المرور؟', style: GoogleFonts.cairo(color: primaryColor, fontWeight: FontWeight.bold)))),
+                    const SizedBox(height: 20),
+                    GestureDetector(
+                      onTap: () => _animateButton(login),
+                      child: AnimatedBuilder(
+                        animation: _scaleAnimation,
+                        builder: (context, child) => Transform.scale(scale: _scaleAnimation.value, child: child),
+                        child: Container(width: double.infinity, height: 55, decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(15), boxShadow: [BoxShadow(color: primaryColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]), child: Center(child: Text('تسجيل الدخول', style: GoogleFonts.cairo(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)))),
                       ),
                     ),
-
-                    // المحتوى
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 40, 24, 20),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 30),
-                            const Text(
-                              'مرحباً بعودتك',
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 26),
-
-                            // 💡 Username or Email Input
-                            TextField(
-                              controller: usernameOrEmailController,
-                              decoration: InputDecoration(
-                                labelText: 'اسم المستخدم أو البريد الإلكتروني',
-                                hintText: 'أدخل اسم المستخدم أو البريد',
-                                filled: true,
-                                fillColor: Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                    color: Colors.black12,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-
-                            // كلمة المرور
-                            TextField(
-                              controller: passwordController,
-                              obscureText: _obscurePassword,
-                              decoration: InputDecoration(
-                                labelText: 'كلمة المرور',
-                                hintText: 'أدخل كلمة المرور',
-                                filled: true,
-                                fillColor: Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                    color: Colors.black12,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 26),
-
-                            // زر تسجيل الدخول
-                            SizedBox(
-                              width: double.infinity,
-                              height: 50,
-                              child: ElevatedButton(
-                                onPressed: login,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF26A69A),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'تسجيل الدخول',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 18),
-
-                            GestureDetector(
-                              onTap: () {
-                                // Navigator action for 'Forgot Password' placeholder
-                              },
-                              child: const Text(
-                                'نسيت كلمة المرور؟',
-                                style: TextStyle(
-                                  color: Colors.blueAccent,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 40),
-
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  'ليس لديك حساب؟ ',
-                                  style: TextStyle(color: Colors.black54),
-                                ),
-                                GestureDetector(
-                                  onTap: () {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const SignUpScreen(),
-                                      ),
-                                    );
-                                  },
-                                  child: const Text(
-                                    'إنشاء حساب',
-                                    style: TextStyle(
-                                      color: Colors.blueAccent,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 20),
-                          ],
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 30),
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Text('ليس لديك حساب؟ ', style: GoogleFonts.cairo(color: Colors.grey)),
+                      GestureDetector(onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SignUpScreen())), child: Text('إنشاء حساب جديد', style: GoogleFonts.cairo(color: primaryColor, fontWeight: FontWeight.bold))),
+                    ]),
                   ],
                 ),
               ),
@@ -333,67 +135,21 @@ class _SignInScreenState extends State<SignInScreen> {
       ),
     );
   }
+
+  Widget _buildTextField({required TextEditingController controller, required String label, required IconData icon, bool isPass = false, bool obscure = false, VoidCallback? onEyePressed}) {
+    return TextField(controller: controller, obscureText: obscure, style: GoogleFonts.cairo(), decoration: InputDecoration(labelText: label, labelStyle: GoogleFonts.cairo(color: Colors.grey), prefixIcon: Icon(icon, color: primaryColor), suffixIcon: isPass ? IconButton(icon: Icon(obscure ? Icons.visibility_off : Icons.visibility, color: Colors.grey), onPressed: onEyePressed) : null, filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor, width: 1.5))));
+  }
 }
 
-class _TopGradientPainter extends CustomPainter {
+class _HeaderPainter extends CustomPainter {
+  final Color color;
+  _HeaderPainter({required this.color});
   @override
   void paint(Canvas canvas, Size size) {
-    final double h = size.height;
-    final double w = size.width;
-
-    Path path = Path();
-    path.moveTo(0, 0);
-    path.lineTo(w, 0);
-    path.lineTo(w, h - 40);
-    path.quadraticBezierTo(w * 0.5, h + 50, 0, h - 40);
-    path.close();
-
-    final Rect rect = Rect.fromLTWH(0, 0, w, h);
-    final Gradient gradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: const [
-        Color(0xFF9EEBE4), // فاتح
-        Color(0xFF5DD5CA), // متوسط
-        Color(0xFF26A69A), // غامق
-      ],
-    );
-
-    final Paint paint = Paint()..shader = gradient.createShader(rect);
+    final paint = Paint()..color = color;
+    final path = Path()..lineTo(0, size.height - 50)..quadraticBezierTo(size.width / 2, size.height + 20, size.width, size.height - 50)..lineTo(size.width, 0)..close();
     canvas.drawPath(path, paint);
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _WavesPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double w = size.width;
-    final double h = size.height;
-
-    Paint paint1 = Paint()..color = const Color(0xFFE9E9E9);
-    Path p1 = Path();
-    p1.moveTo(0, h * 0.6);
-    p1.quadraticBezierTo(w * 0.25, h * 0.45, w * 0.5, h * 0.6);
-    p1.quadraticBezierTo(w * 0.75, h * 0.75, w, h * 0.6);
-    p1.lineTo(w, h);
-    p1.lineTo(0, h);
-    p1.close();
-    canvas.drawPath(p1, paint1);
-
-    Paint paint2 = Paint()..color = const Color(0xFFF5F5F5);
-    Path p2 = Path();
-    p2.moveTo(0, h * 0.75);
-    p2.quadraticBezierTo(w * 0.28, h * 0.6, w * 0.5, h * 0.75);
-    p2.quadraticBezierTo(w * 0.72, h * 0.9, w, h * 0.75);
-    p2.lineTo(w, h);
-    p2.lineTo(0, h);
-    p2.close();
-    canvas.drawPath(p2, paint2);
-  }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
