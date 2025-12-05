@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/features/auth/presentation/screens/signin_screen.dart';
 import 'package:test1/data/services/auth_service.dart';
-import 'package:test1/main.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -13,522 +13,153 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   final authService = AuthService();
+  final supabase = Supabase.instance.client;
+  
+  // Controllers
   final firstNameController = TextEditingController();
   final lastNameController = TextEditingController();
-  final usernameController =
-      TextEditingController(); // 💡 New Username Controller
-  final ageController = TextEditingController();
-  final genderController = TextEditingController();
-
+  final usernameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
 
-  bool agreePersonalData = true;
-  bool _obscurePassword = true;
+  bool agreeData = true;
+  bool _obscurePass = true;
   bool _obscureConfirm = true;
-
   String? selectedAge;
   String? selectedGender;
   final List<String> ages = [for (int i = 12; i <= 60; i++) i.toString()];
+  
+  final Color primaryColor = const Color(0xFF5E9E92);
 
   void signUp() async {
-    final firstName = firstNameController.text.trim();
-    final lastName = lastNameController.text.trim();
-    final username = usernameController.text.trim(); // 💡 Get Username
-    final email = emailController.text.trim();
-    final password = passwordController.text;
-    final confirmPassword = confirmPasswordController.text;
-
-    // 💡 Validation Check: Include username
-    if (firstName.isEmpty ||
-        lastName.isEmpty ||
-        username.isEmpty || // Check username
-        selectedAge == null ||
-        selectedGender == null ||
-        email.isEmpty ||
-        password.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("يرجى ملئ جميع الحقول")));
+    if (firstNameController.text.isEmpty || lastNameController.text.isEmpty || usernameController.text.isEmpty || emailController.text.isEmpty || passwordController.text.isEmpty || selectedAge == null || selectedGender == null) {
+      _showMsg("يرجى تعبئة كافة الحقول", Colors.orange);
       return;
     }
-
-    if (password != confirmPassword) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("كلمة المرور غير متطابقة")));
-      return;
-    }
-
-    // Optional: Check if username already exists in DB (Best practice)
-    final existingUser = await supabase
-        .from('users')
-        .select()
-        .eq('username', username)
-        .maybeSingle();
-    if (existingUser != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("اسم المستخدم محجوز. يرجى اختيار اسم آخر."),
-        ),
-      );
+    if (passwordController.text != confirmPasswordController.text){
+      _showMsg("كلمات المرور غير متطابقة", Colors.orange);
       return;
     }
 
     try {
-      // إنشاء حساب في Auth
-      final response = await authService.signUpWithEmailPassword(
-        email,
-        password,
-      );
+      final existing = await supabase.from('users').select().eq('username', usernameController.text).maybeSingle();
+      if (existing != null) { _showMsg("اسم المستخدم مستخدم مسبقاً", Colors.orange); return; }
 
-      // التحقق من نجاح إنشاء الحساب والحصول على user id
-      if (response.user != null) {
-        final userId = response.user!.id;
-
-        // 💡 Save username in addition to other data
+      final res = await authService.signUpWithEmailPassword(emailController.text.trim(), passwordController.text);
+      if (res.user != null) {
         await supabase.from('users').insert({
-          "id": userId,
-          "first_name": firstName,
-          "last_name": lastName,
-          "username": username, // 💡 Saving Username
+          "id": res.user!.id,
+          "first_name": firstNameController.text.trim(),
+          "last_name": lastNameController.text.trim(),
+          "username": usernameController.text.trim(),
           "age": int.parse(selectedAge!),
           "gender": selectedGender!,
-          "email": email,
+          "email": emailController.text.trim(),
         });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("تم إنشاء الحساب بنجاح")),
-          );
-
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const SignInScreen()),
-          );
+        if(mounted) {
+          _showMsg("تم إنشاء الحساب بنجاح", Colors.green);
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SignInScreen()));
         }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("حدث خطأ: ${e.toString()}")));
-      }
+      _showMsg("حدث خطأ أثناء التسجيل", Colors.red);
     }
   }
 
-  @override
-  void dispose() {
-    firstNameController.dispose();
-    lastNameController.dispose();
-    usernameController.dispose(); // 💡 Dispose new controller
-    emailController.dispose();
-    passwordController.dispose();
-    confirmPasswordController.dispose();
-    super.dispose();
+  void _showMsg(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg, style: GoogleFonts.cairo()), backgroundColor: color));
   }
 
   @override
   Widget build(BuildContext context) {
-    const double topGradientHeight = 200;
-    const double wavesHeight = 160;
-
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: Color(0xFFF5F5F5),
+        backgroundColor: const Color(0xFFF8F9FA),
         body: Column(
           children: [
-            SizedBox(
-              height: topGradientHeight,
-              child: Stack(
-                children: [
-                  CustomPaint(
-                    size: const Size(double.infinity, topGradientHeight),
-                    painter: _TopGradientPainter(),
-                  ),
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 20),
-                      child: Text(
-                        'مُنصت',
-                        style: const TextStyle(
-                          fontSize: 36,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+            // الهيدر
+            Container(
+              height: 120,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: primaryColor,
+                borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
               ),
+              child: Center(child: Padding(padding: const EdgeInsets.only(top: 30), child: Text('حساب جديد', style: GoogleFonts.cairo(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold)))),
             ),
+
             Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(60),
-                    topRight: Radius.circular(60),
-                  ),
-                ),
-                child: Stack(
-                  clipBehavior: Clip.none,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
                   children: [
-                    Positioned(
-                      top: -wavesHeight + 20,
-                      left: 0,
-                      right: 0,
-                      child: SizedBox(
-                        height: wavesHeight,
-                        child: CustomPaint(
-                          size: const Size(double.infinity, wavesHeight),
-                          painter: _WavesPainter(),
+                    Row(children: [
+                      Expanded(child: _field(firstNameController, 'الاسم الأول')),
+                      const SizedBox(width: 10),
+                      Expanded(child: _field(lastNameController, 'الاسم الأخير')),
+                    ]),
+                    const SizedBox(height: 15),
+                    _field(usernameController, 'اسم المستخدم'),
+                    const SizedBox(height: 15),
+                    
+                    // العمر والجنس
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: selectedAge,
+                            decoration: _inputDecor('العمر'),
+                            items: ages.map((e) => DropdownMenuItem(value: e, child: Text(e, style: GoogleFonts.cairo()))).toList(),
+                            onChanged: (v) => setState(() => selectedAge = v),
+                          ),
                         ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Container(
+                            height: 55,
+                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _radioOpt('ذكر'),
+                                _radioOpt('أنثى'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    _field(emailController, 'البريد الإلكتروني', type: TextInputType.emailAddress),
+                    const SizedBox(height: 15),
+                    _field(passwordController, 'كلمة المرور', isPass: true, obscure: _obscurePass, onEye: () => setState(() => _obscurePass = !_obscurePass)),
+                    const SizedBox(height: 15),
+                    _field(confirmPasswordController, 'تأكيد كلمة المرور', isPass: true, obscure: _obscureConfirm, onEye: () => setState(() => _obscureConfirm = !_obscureConfirm)),
+                    
+                    const SizedBox(height: 20),
+                    Row(children: [
+                      Checkbox(value: agreeData, activeColor: primaryColor, onChanged: (v) => setState(() => agreeData = v!)),
+                      Text('أوافق على الشروط والأحكام', style: GoogleFonts.cairo(fontSize: 12)),
+                    ]),
+                    
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: agreeData ? signUp : null,
+                        style: ElevatedButton.styleFrom(backgroundColor: primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                        child: Text('إنشاء حساب', style: GoogleFonts.cairo(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 10, 24, 20),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 20),
-                            const Text(
-                              'إنشاء حساب جديد',
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-
-                            // ====== الاسم ======
-                            const Align(
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                'الاسم',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-
-                            // الاسم الأول والاسم الأخير جنب بعض
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: firstNameController,
-                                    decoration: InputDecoration(
-                                      labelText: 'الاسم الأول',
-                                      hintText: 'أدخل اسمك الأول',
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 14,
-                                          ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: TextField(
-                                    controller: lastNameController,
-                                    decoration: InputDecoration(
-                                      labelText: 'الاسم الأخير',
-                                      hintText: 'أدخل اسمك الأخير',
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 14,
-                                          ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // 💡 New: اسم المستخدم (Username)
-                            TextField(
-                              controller: usernameController,
-                              decoration: InputDecoration(
-                                labelText: 'اسم المستخدم',
-                                hintText: 'اختر اسم مستخدم فريد',
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // ====== العمر والجنس ======
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: DropdownButtonFormField<String>(
-                                    decoration: InputDecoration(
-                                      labelText: 'العمر',
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 14,
-                                          ),
-                                    ),
-                                    initialValue: selectedAge,
-                                    items: ages
-                                        .map(
-                                          (age) => DropdownMenuItem(
-                                            value: age,
-                                            child: Text(age),
-                                          ),
-                                        )
-                                        .toList(),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        selectedAge = value;
-                                      });
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'الجنس',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: RadioListTile<String>(
-                                              title: const Text('ذكر'),
-                                              value: 'ذكر',
-                                              groupValue: selectedGender,
-                                              contentPadding: EdgeInsets.zero,
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  selectedGender = value;
-                                                });
-                                              },
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: RadioListTile<String>(
-                                              title: const Text('أنثى'),
-                                              value: 'أنثى',
-                                              groupValue: selectedGender,
-                                              contentPadding: EdgeInsets.zero,
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  selectedGender = value;
-                                                });
-                                              },
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // البريد الإلكتروني
-                            TextField(
-                              controller: emailController,
-                              decoration: InputDecoration(
-                                labelText: 'البريد الإلكتروني',
-                                hintText: 'أدخل البريد الإلكتروني',
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // كلمة المرور
-                            TextField(
-                              controller: passwordController,
-                              obscureText: _obscurePassword,
-                              decoration: InputDecoration(
-                                labelText: 'كلمة المرور',
-                                hintText: 'أدخل كلمة المرور',
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // تأكيد كلمة المرور
-                            TextField(
-                              controller: confirmPasswordController,
-                              obscureText: _obscureConfirm,
-                              decoration: InputDecoration(
-                                labelText: 'التحقق من كلمة المرور',
-                                hintText: 'تكرار كلمة المرور',
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscureConfirm
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscureConfirm = !_obscureConfirm;
-                                    });
-                                  },
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            Row(
-                              children: [
-                                Checkbox(
-                                  value: agreePersonalData,
-                                  onChanged: (bool? value) {
-                                    setState(() {
-                                      agreePersonalData = value ?? true;
-                                    });
-                                  },
-                                  activeColor: const Color.fromARGB(
-                                    255,
-                                    68,
-                                    138,
-                                    255,
-                                  ),
-                                ),
-                                const Text(
-                                  'أوافق على معالجة ',
-                                  style: TextStyle(color: Colors.black),
-                                ),
-                                const Text(
-                                  'البيانات الشخصية',
-                                  style: TextStyle(
-                                    color: Colors.blueAccent,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 10),
-
-                            SizedBox(
-                              width: double.infinity,
-                              height: 50,
-                              child: ElevatedButton(
-                                onPressed: agreePersonalData ? signUp : null,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF26A69A),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'إنشاء حساب',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  'لديك حساب بالفعل؟ ',
-                                  style: TextStyle(color: Colors.black),
-                                ),
-                                GestureDetector(
-                                  onTap: () {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const SignInScreen(),
-                                      ),
-                                    );
-                                  },
-                                  child: const Text(
-                                    'تسجيل الدخول',
-                                    style: TextStyle(
-                                      color: Colors.blueAccent,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 20),
-                          ],
-                        ),
-                      ),
-                    ),
+                    
+                    const SizedBox(height: 20),
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Text('لديك حساب؟ ', style: GoogleFonts.cairo(color: Colors.grey)),
+                      GestureDetector(onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SignInScreen())), child: Text('سجل دخول', style: GoogleFonts.cairo(color: primaryColor, fontWeight: FontWeight.bold))),
+                    ]),
                   ],
                 ),
               ),
@@ -538,66 +169,35 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ),
     );
   }
-}
 
-/* ======= Painters للتماثل مع صفحة الدخول ======= */
-
-class _TopGradientPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double h = size.height;
-    final double w = size.width;
-
-    Path path = Path();
-    path.moveTo(0, 0);
-    path.lineTo(w, 0);
-    path.lineTo(w, h - 40);
-    path.quadraticBezierTo(w * 0.5, h + 50, 0, h - 40);
-    path.close();
-
-    final Rect rect = Rect.fromLTWH(0, 0, w, h);
-    final Gradient gradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: const [Color(0xFF9EEBE4), Color(0xFF5DD5CA), Color(0xFF26A69A)],
-      stops: const [0.0, 0.5, 1.0],
+  Widget _field(TextEditingController c, String label, {bool isPass = false, bool obscure = false, VoidCallback? onEye, TextInputType type = TextInputType.text}) {
+    return TextField(
+      controller: c, obscureText: obscure, keyboardType: type, style: GoogleFonts.cairo(),
+      decoration: _inputDecor(label).copyWith(
+        suffixIcon: isPass ? IconButton(icon: Icon(obscure ? Icons.visibility_off : Icons.visibility, color: Colors.grey), onPressed: onEye) : null,
+      ),
     );
-
-    final Paint paint = Paint()..shader = gradient.createShader(rect);
-    canvas.drawPath(path, paint);
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _WavesPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double w = size.width;
-    final double h = size.height;
-
-    Paint paint1 = Paint()..color = const Color(0xFFE9E9E9);
-    Path p1 = Path();
-    p1.moveTo(0, h * 0.6);
-    p1.quadraticBezierTo(w * 0.25, h * 0.45, w * 0.5, h * 0.6);
-    p1.quadraticBezierTo(w * 0.75, h * 0.75, w, h * 0.6);
-    p1.lineTo(w, h);
-    p1.lineTo(0, h);
-    p1.close();
-    canvas.drawPath(p1, paint1);
-
-    Paint paint2 = Paint()..color = const Color(0xFFF5F5F5);
-    Path p2 = Path();
-    p2.moveTo(0, h * 0.75);
-    p2.quadraticBezierTo(w * 0.28, h * 0.6, w * 0.5, h * 0.75);
-    p2.quadraticBezierTo(w * 0.72, h * 0.9, w, h * 0.75);
-    p2.lineTo(w, h);
-    p2.lineTo(0, h);
-    p2.close();
-    canvas.drawPath(p2, paint2);
+  InputDecoration _inputDecor(String label) {
+    return InputDecoration(
+      labelText: label, labelStyle: GoogleFonts.cairo(color: Colors.grey, fontSize: 14),
+      filled: true, fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor)),
+    );
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget _radioOpt(String val) {
+    return GestureDetector(
+      onTap: () => setState(() => selectedGender = val),
+      child: Row(children: [
+        Icon(selectedGender == val ? Icons.radio_button_checked : Icons.radio_button_off, color: selectedGender == val ? primaryColor : Colors.grey, size: 18),
+        const SizedBox(width: 4),
+        Text(val, style: GoogleFonts.cairo(fontSize: 14)),
+      ]),
+    );
+  }
 }

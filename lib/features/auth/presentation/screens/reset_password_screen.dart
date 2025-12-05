@@ -1,111 +1,60 @@
 import 'package:flutter/material.dart';
-import 'otp_verification_screen.dart'; // Re-using the custom button
+import 'package:google_fonts/google_fonts.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
-
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
-  bool _isObscure1 = true;
-  bool _isObscure2 = true;
+  bool _obs1 = true;
+  bool _obs2 = true;
+  final Color primaryColor = const Color(0xFF5E9E92);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFE0F2F1),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF004D40)),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              // Replace with your logo
-              'منصت',
-              style: TextStyle(
-                fontFamily: 'Tajawal',
-                color: Color(0xFF004D40),
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, leading: const BackButton(color: Colors.black)),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              const SizedBox(height: 40),
+              Text('كلمة المرور الجديدة', style: GoogleFonts.cairo(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor)),
+              const SizedBox(height: 40),
+              _field('كلمة المرور الجديدة', _obs1, () => setState(() => _obs1 = !_obs1)),
+              const SizedBox(height: 20),
+              _field('تأكيد كلمة المرور', _obs2, () => setState(() => _obs2 = !_obs2)),
+              const SizedBox(height: 60),
+              SizedBox(
+                width: double.infinity, height: 50,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
+                  style: ElevatedButton.styleFrom(backgroundColor: primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: Text('حفظ التغييرات', style: GoogleFonts.cairo(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 60),
-            const Text(
-              'إعادة تعيين كلمة المرور',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF004D40),
-              ),
-            ),
-            const SizedBox(height: 60),
-            TextField(
-              obscureText: _isObscure1,
-              textAlign: TextAlign.right,
-              decoration: InputDecoration(
-                labelText: 'كلمة المرور الجديدة',
-                labelStyle: const TextStyle(color: Color(0xFF00796B)),
-                filled: true,
-                fillColor: Colors.white,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _isObscure1 ? Icons.visibility_off : Icons.visibility,
-                    color: Colors.grey,
-                  ),
-                  onPressed: () => setState(() => _isObscure1 = !_isObscure1),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              obscureText: _isObscure2,
-              textAlign: TextAlign.right,
-              decoration: InputDecoration(
-                labelText: 'تأكيد كلمة المرور',
-                labelStyle: const TextStyle(color: Color(0xFF00796B)),
-                filled: true,
-                fillColor: Colors.white,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _isObscure2 ? Icons.visibility_off : Icons.visibility,
-                    color: Colors.grey,
-                  ),
-                  onPressed: () => setState(() => _isObscure2 = !_isObscure2),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 80),
-            CustomGradientButton(
-              text: 'تغيير كلمة المرور',
-              onPressed: () {
-                // For now, just pop back to the previous screen
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
         ),
+      ),
+    );
+  }
+
+  Widget _field(String label, bool obs, VoidCallback onEye) {
+    return TextField(
+      obscureText: obs,
+      style: GoogleFonts.cairo(),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.cairo(color: Colors.grey),
+        filled: true, fillColor: Colors.white,
+        suffixIcon: IconButton(icon: Icon(obs ? Icons.visibility_off : Icons.visibility, color: Colors.grey), onPressed: onEye),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
     );
   }
