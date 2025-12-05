@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/data/services/auth_service.dart';
 import 'dart:ui' as ui;
+import 'package:google_fonts/google_fonts.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
+
   @override
   State<TasksScreen> createState() => _TasksScreenState();
 }
@@ -13,60 +15,140 @@ class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStat
   final supabase = Supabase.instance.client;
   final authService = AuthService();
   final Color primaryColor = const Color(0xFF5E9E92);
-  List<Map<String, dynamic>> tasks = [];
-  List<Map<String, dynamic>> habits = [];
+  
+  // قوائم البيانات المنفصلة
+  List<Map<String, dynamic>> tasks = [];  // مهام قادمة من الـ AI
+  List<Map<String, dynamic>> habits = []; // عادات يضيفها المستخدم
+  
   bool isLoading = true;
-  late AnimationController _btnController;
 
   @override
   void initState() {
     super.initState();
-    _btnController = AnimationController(vsync: this, duration: const Duration(milliseconds: 100));
-    _loadTasks();
+    _loadAllData();
   }
 
-  Future<void> _loadTasks() async {
+  // تحميل البيانات من الجدولين
+  Future<void> _loadAllData() async {
     final userId = authService.getCurrentUserId();
     if (userId == null) return;
+    
+    // منع تحديث الحالة إذا خرجنا من الصفحة
+    if (!mounted) return;
+    setState(() => isLoading = true);
+
     try {
-      final response = await supabase.from('tasks').select().eq('id', userId).order('task_id');
-      final allItems = List<Map<String, dynamic>>.from(response);
-      if(mounted) setState(() { habits = allItems.where((t) => t['is_habit'] == true).toList(); tasks = allItems.where((t) => t['is_habit'] != true).toList(); isLoading = false; });
-    } catch (e) { if(mounted) setState(() => isLoading = false); }
+      // 1. جلب العادات من جدول habits
+      final habitsRes = await supabase
+          .from('habits')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at');
+
+      // 2. جلب المهام من جدول tasks (الخاصة بالـ AI)
+      final tasksRes = await supabase
+          .from('tasks')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at');
+      
+      if (mounted) {
+        setState(() { 
+          habits = List<Map<String, dynamic>>.from(habitsRes);
+          tasks = List<Map<String, dynamic>>.from(tasksRes);
+          isLoading = false; 
+        });
+      }
+    } catch (e) { 
+      debugPrint("Error loading data: $e");
+      if (mounted) setState(() => isLoading = false); 
+    }
   }
 
-  Future<void> _toggleTask(int taskId, bool currentVal) async {
+  // تغيير حالة العادة (إنجاز/عدم إنجاز)
+  Future<void> _toggleHabit(int id, bool currentVal) async {
+    try {
+      // تحديث متفائل للواجهة (Optimistic Update)
+      setState(() {
+        int index = habits.indexWhere((h) => h['id'] == id);
+        if (index != -1) habits[index]['is_completed'] = !currentVal;
+      });
+      // إرسال للقاعدة
+      await supabase.from('habits').update({'is_completed': !currentVal}).eq('id', id);
+    } catch (e) {
+      // في حال الفشل نعيد التحميل
+      _loadAllData();
+    }
+  }
+
+  // تغيير حالة المهمة
+  Future<void> _toggleTask(int id, bool currentVal) async {
     try {
       setState(() {
-        int index = tasks.indexWhere((t) => t['task_id'] == taskId);
-        if (index != -1) { tasks[index]['task_completion'] = !currentVal; } 
-        else { index = habits.indexWhere((t) => t['task_id'] == taskId); if (index != -1) habits[index]['task_completion'] = !currentVal; }
+        int index = tasks.indexWhere((t) => t['id'] == id);
+        if (index != -1) tasks[index]['is_completed'] = !currentVal;
       });
-      await supabase.from('tasks').update({'task_completion': !currentVal}).eq('task_id', taskId);
-    } catch (e) { _loadTasks(); }
+      await supabase.from('tasks').update({'is_completed': !currentVal}).eq('id', id);
+    } catch (e) {
+      _loadAllData();
+    }
   }
 
-  Future<void> _addTask(String title, bool isHabit) async {
+  // إضافة عادة جديدة (خاص بالمستخدم)
+  Future<void> _addHabit(String title, BuildContext dialogContext) async {
+    if (title.trim().isEmpty) return;
+
     final userId = authService.getCurrentUserId();
     if (userId == null) return;
+    
     try {
-      await supabase.from('tasks').insert({'id': userId, 'task': title, 'task_completion': false, 'is_habit': isHabit});
-      _loadTasks();
-    } catch (e) { debugPrint("$e"); }
+      await supabase.from('habits').insert({
+        'user_id': userId, 
+        'title': title.trim(), 
+        'is_completed': false
+      });
+      
+      if (mounted) {
+        Navigator.pop(dialogContext); // إغلاق النافذة
+        _loadAllData(); // تحديث القائمة
+      }
+    } catch (e) { 
+      debugPrint("Error adding habit: $e");
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("فشل الإضافة", style: GoogleFonts.cairo())));
+    }
   }
 
-  void _openAddDialog() {
+  // نافذة إضافة عادة جديدة
+  void _openAddHabitDialog() {
     final ctrl = TextEditingController();
-    bool isHabit = false;
-    showDialog(context: context, builder: (ctx) => Directionality(textDirection: ui.TextDirection.rtl, child: StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
-      title: const Text("إضافة جديدة", style: TextStyle(fontWeight: FontWeight.bold)),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: ctrl, decoration: const InputDecoration(hintText: "العنوان")),
-        const SizedBox(height: 20),
-        Row(children: [const Text("هل هي عادة يومية؟"), const Spacer(), Switch(value: isHabit, activeColor: primaryColor, onChanged: (val) => setDialogState(() => isHabit = val))])
-      ]),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("إلغاء")), ElevatedButton(onPressed: () { _addTask(ctrl.text, isHabit); Navigator.pop(ctx); }, style: ElevatedButton.styleFrom(backgroundColor: primaryColor), child: const Text("إضافة", style: TextStyle(color: Colors.white)))]
-    ))));
+    showDialog(
+      context: context, 
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl, 
+        child: AlertDialog(
+          title: Text("إضافة عادة جديدة", style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
+          content: TextField(
+            controller: ctrl, 
+            decoration: InputDecoration(
+              hintText: "اسم العادة (مثلاً: شرب ماء)", 
+              hintStyle: GoogleFonts.cairo(fontSize: 14),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+            )
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx), 
+              child: Text("إلغاء", style: GoogleFonts.cairo(color: Colors.grey))
+            ),
+            ElevatedButton(
+              onPressed: () => _addHabit(ctrl.text, ctx), 
+              style: ElevatedButton.styleFrom(backgroundColor: primaryColor), 
+              child: Text("إضافة", style: GoogleFonts.cairo(color: Colors.white))
+            ),
+          ],
+        )
+      )
+    );
   }
 
   @override
@@ -75,42 +157,97 @@ class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStat
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
-        appBar: AppBar(title: const Text('مهامي وعاداتي', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: primaryColor, centerTitle: true, elevation: 0),
+        appBar: AppBar(
+          title: Text('مهامي وعاداتي', style: GoogleFonts.cairo(fontWeight: FontWeight.bold, color: Colors.white)),
+          backgroundColor: primaryColor,
+          centerTitle: true,
+          elevation: 0
+        ),
+        
+        // زر الإضافة (للعادات فقط) - مرفوع عن البار السفلي
         floatingActionButton: Padding(
           padding: const EdgeInsets.only(bottom: 80.0, left: 10),
-          child: GestureDetector(
-            onTapDown: (_) => _btnController.forward(),
-            onTapUp: (_) { _btnController.reverse(); _openAddDialog(); },
-            onTapCancel: () => _btnController.reverse(),
-            child: ScaleTransition(scale: Tween<double>(begin: 1.0, end: 0.9).animate(_btnController), child: Container(width: 56, height: 56, decoration: BoxDecoration(color: primaryColor, shape: BoxShape.circle, boxShadow: [BoxShadow(color: primaryColor.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))]), child: const Icon(Icons.add, color: Colors.white))),
+          child: FloatingActionButton(
+            onPressed: _openAddHabitDialog,
+            backgroundColor: primaryColor,
+            child: const Icon(Icons.add, color: Colors.white),
           ),
         ),
-        body: isLoading ? Center(child: CircularProgressIndicator(color: primaryColor)) : SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _sectionHeader("العادات اليومية 🌟"),
-            if (habits.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Center(child: Text("لا توجد عادات مضافة", style: TextStyle(color: Colors.grey)))) else ...habits.map((t) => _taskTile(t)),
-            const SizedBox(height: 30),
-            _sectionHeader("قائمة المهام ✅"),
-            if (tasks.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Center(child: Text("لا توجد مهام مضافة", style: TextStyle(color: Colors.grey)))) else ...tasks.map((t) => _taskTile(t)),
-          ]),
-        ),
+        
+        body: isLoading 
+          ? Center(child: CircularProgressIndicator(color: primaryColor)) 
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // --- قسم العادات ---
+                  _sectionHeader("عاداتي اليومية 🌟"),
+                  if (habits.isEmpty) 
+                    _emptyState("أضف عاداتك اليومية لتتابعها")
+                  else 
+                    ...habits.map((h) => _itemTile(h, isHabit: true)),
+
+                  const SizedBox(height: 30),
+
+                  // --- قسم مهام الـ AI ---
+                  _sectionHeader("مهام الجلسات 🤖"),
+                  if (tasks.isEmpty) 
+                    _emptyState("لا توجد مهام من منصت حتى الآن")
+                  else 
+                    ...tasks.map((t) => _itemTile(t, isHabit: false)),
+                ],
+              ),
+            ),
       ),
     );
   }
 
   Widget _sectionHeader(String title) {
-    return Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor)));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(title, style: GoogleFonts.cairo(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor)),
+    );
   }
 
-  Widget _taskTile(Map<String, dynamic> t) {
-    final isDone = t['task_completion'] == true;
+  Widget _emptyState(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Center(
+        child: Text(text, style: GoogleFonts.cairo(color: Colors.grey, fontSize: 14)),
+      ),
+    );
+  }
+
+  Widget _itemTile(Map<String, dynamic> item, {required bool isHabit}) {
+    final isDone = item['is_completed'] == true;
+    final int id = item['id']; // المعرف (BigInt في الداتابيس يقرأ كـ int هنا)
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: isDone ? Border.all(color: primaryColor.withOpacity(0.3)) : null),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: isDone ? Border.all(color: primaryColor.withOpacity(0.3)) : null,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 5)]
+      ),
       child: ListTile(
-        leading: Checkbox(value: isDone, activeColor: primaryColor, onChanged: (_) => _toggleTask(t['task_id'], isDone)),
-        title: Text(t['task'], style: TextStyle(decoration: isDone ? TextDecoration.lineThrough : null, color: isDone ? Colors.grey : Colors.black)),
+        leading: Checkbox(
+          value: isDone, 
+          activeColor: primaryColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          onChanged: (_) => isHabit ? _toggleHabit(id, isDone) : _toggleTask(id, isDone)
+        ),
+        title: Text(
+          item['title'], 
+          style: GoogleFonts.cairo(
+            decoration: isDone ? TextDecoration.lineThrough : null, 
+            color: isDone ? Colors.grey : Colors.black
+          )
+        ),
+        subtitle: !isHabit && item['session_number'] != null 
+            ? Text("من الجلسة رقم ${item['session_number']}", style: GoogleFonts.cairo(fontSize: 10, color: primaryColor)) 
+            : null,
       ),
     );
   }
