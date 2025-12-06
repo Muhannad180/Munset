@@ -12,14 +12,25 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
+  // Notifier to trigger Home refresh
+  final ValueNotifier<bool> _refreshHome = ValueNotifier(false);
 
-  final List<Widget> _pages = [
-    HomePage(),
-    Journal(),
-    Sessions(),
-    TasksScreen(),
-    Profile(),
-  ];
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      HomePage(refreshNotifier: _refreshHome),
+      Journal(),
+      Sessions(),
+      TasksScreen(onDataUpdated: () {
+        // Trigger refresh in Home
+        _refreshHome.value = !_refreshHome.value;
+      }),
+      Profile(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +80,9 @@ class _MainNavigationState extends State<MainNavigation> {
 
     return GestureDetector(
       onTap: () {
+        if (index == 0) {
+          _refreshHome.value = !_refreshHome.value;
+        }
         setState(() {
           _currentIndex = index;
         });
