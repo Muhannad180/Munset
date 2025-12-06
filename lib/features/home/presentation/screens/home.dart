@@ -3,17 +3,18 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
-import 'package:test1/main.dart'; 
+import 'package:test1/main.dart';
 
 class HomePage extends StatefulWidget {
   final VoidCallback? onReload;
-  const HomePage({super.key, this.onReload});
+  final ValueNotifier<bool>? refreshNotifier;
+  const HomePage({super.key, this.onReload, this.refreshNotifier});
 
   @override
-  _HomePageState createState() => _HomePageState();
+  HomePageState createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class HomePageState extends State<HomePage> {
   DateTime _selectedDate = DateTime.now();
   String _locale = 'ar';
   String firstName = '';
@@ -23,11 +24,9 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> userTasks = [];
   bool isLoadingData = true;
 
-  // ألوان الثيم
   final Color primaryColor = const Color(0xFF5E9E92);
   final Color bgColor = const Color(0xFFF8F9FA);
 
-  // قائمة المشاعر (لنافذة الإضافة)
   final List<Map<String, String>> moods = [
     {'emoji': '😭', 'name': 'حزين جداً'}, {'emoji': '😢', 'name': 'حزين'}, {'emoji': '😔', 'name': 'مكتئب'},
     {'emoji': '😞', 'name': 'خيبة أمل'}, {'emoji': '😐', 'name': 'محايد'}, {'emoji': '🙂', 'name': 'هادئ'},
@@ -48,8 +47,15 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _setLocale();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAllHomeData());
+    WidgetsBinding.instance.addPostFrameCallback((_) => loadAllHomeData());
+    widget.refreshNotifier?.addListener(loadAllHomeData);
     currentAdvice = (cbtAdvices..shuffle()).first;
+  }
+
+  @override
+  void dispose() {
+    widget.refreshNotifier?.removeListener(loadAllHomeData);
+    super.dispose();
   }
 
   void _setLocale() async {
@@ -65,7 +71,7 @@ class _HomePageState extends State<HomePage> {
 
   void _onDaySelected(DateTime day) => setState(() => _selectedDate = day);
 
-  Future<void> _loadAllHomeData() async {
+  Future<void> loadAllHomeData() async {
     if (!mounted) return;
     setState(() => isLoadingData = true);
     final user = supabase.auth.currentUser;
@@ -101,16 +107,29 @@ class _HomePageState extends State<HomePage> {
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
-      final response = await supabase.from('tasks').select().eq('id', userId);
-      final tasks = List<Map<String, dynamic>>.from(response);
+
+      // 1. Fetch habits
+      final habitsRes = await supabase.from('habits').select().eq('user_id', userId);
+      final List<Map<String, dynamic>> habitsList = List<Map<String, dynamic>>.from(habitsRes);
+
+      // 2. Fetch tasks
+      // Note: In tasks.dart it uses 'user_id', so we should use that here too. 
+      // Previous code used 'id' which might be wrong for fetching user's list.
+      final tasksRes = await supabase.from('tasks').select().eq('user_id', userId); 
+      final List<Map<String, dynamic>> tasksList = List<Map<String, dynamic>>.from(tasksRes);
+
+      // Combine
+      final allItems = [...habitsList, ...tasksList];
+
       if (mounted) {
-        if (tasks.isEmpty) {
+        if (allItems.isEmpty) {
           setState(() { taskProgress = 0.0; userTasks = []; });
         } else {
-          final completed = tasks.where((t) => t['task_completion'] == true).length;
+          final completed = allItems.where((t) => t['is_completed'] == true).length;
           setState(() {
-            taskProgress = tasks.isNotEmpty ? (completed / tasks.length) : 0.0;
-            userTasks = tasks.take(4).toList();
+            taskProgress = allItems.isNotEmpty ? (completed / allItems.length) : 0.0;
+            // Take top 4 to display
+            userTasks = allItems.take(4).toList();
           });
         }
       }
@@ -281,7 +300,7 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 10),
                     LinearProgressIndicator(value: safeProgress, backgroundColor: Colors.grey[200], color: primaryColor, minHeight: 8, borderRadius: BorderRadius.circular(4)),
                     const SizedBox(height: 15),
-                    if (userTasks.isEmpty) const Text("لا توجد مهام نشطة", style: TextStyle(color: Colors.grey)) else ...userTasks.map((t) => Padding(padding: const EdgeInsets.only(bottom: 8.0), child: Row(children: [Icon(t['task_completion'] ? Icons.check_circle : Icons.circle_outlined, color: primaryColor, size: 20), const SizedBox(width: 10), Text(t['task'])]))),
+                    if (userTasks.isEmpty) const Text("لا توجد مهام نشطة", style: TextStyle(color: Colors.grey)) else ...userTasks.map((t) => Padding(padding: const EdgeInsets.only(bottom: 8.0), child: Row(children: [Icon(t['is_completed'] == true ? Icons.check_circle : Icons.circle_outlined, color: primaryColor, size: 20), const SizedBox(width: 10), Text(t['title'] ?? '')]))),
                   ])),
                 ],
               ),

@@ -35,8 +35,13 @@ class Sessions extends StatelessWidget {
   Widget _sessionCard(BuildContext ctx, String title, String date, String status, IconData icon, {bool isNew = false, bool isLocked = false, bool isDone = false}) {
     return InkWell(
       onTap: () {
-        if (isNew) Navigator.push(ctx, MaterialPageRoute(builder: (_) => const ChatSessionPage(sessionTitle: 'جلسة جديدة', sessionId: '', sessionNumber: 1,)));
-        else if (isLocked) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('الجلسة مقفلة حالياً')));
+        if (isNew) {
+          Navigator.push(ctx, MaterialPageRoute(builder: (_) => const ChatSessionPage(sessionTitle: 'جلسة جديدة', sessionId: '', sessionNumber: 1,)));
+        } else if (isLocked) {
+          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('الجلسة مقفلة حالياً')));
+        } else {
+          Navigator.push(ctx, MaterialPageRoute(builder: (_) => ChatSessionPage(sessionTitle: title, sessionId: '1', sessionNumber: 1,)));
+        }
       },
       child: Container(
         padding: const EdgeInsets.all(20),

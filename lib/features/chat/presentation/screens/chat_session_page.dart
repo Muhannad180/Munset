@@ -25,7 +25,7 @@ class ChatSessionPage extends StatefulWidget {
 }
 
 class _ChatSessionPageState extends State<ChatSessionPage> {
-  int? _sessionId;
+  dynamic _sessionId;
   
   // ألوان الثيم
   final Color primaryColor = const Color(0xFF5E9E92);
@@ -126,10 +126,20 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
   Future<void> _initSession() async {
     _startThinking();
     final userId = _getUserId();
+    
+    // If we already have a numeric ID (passed from previous screen), use it without starting a new session on backend unless necessary
+    // But backend /start-session is designed to resume or start based on number.
+    
     try {
       final startUri = Uri.parse(_apiUrl.replaceFirst('/chat', '/start-session'));
-      final body = {'user_id': userId};
-      if (widget.sessionNumber != null) body['session_number'] = widget.sessionNumber! as String;
+      
+      // Force integers for session_number
+      final sNum = widget.sessionNumber ?? 1;
+      
+      final body = {
+        'user_id': userId,
+        'session_number': sNum, 
+      };
 
       final resp = await http.post(
         startUri,
@@ -141,15 +151,25 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
         final data = jsonDecode(resp.body);
         final opening = data['opening_message'] ?? data['openingMessage'] ?? '';
         final sid = data['session_id'] ?? data['sessionId'];
-        if (_sessionId == null && sid != null) {
-          _sessionId = sid is int ? sid : int.tryParse(sid.toString());
+        
+        // Parse session ID correctly
+        if (sid != null) {
+            // It might come as a String UUID or an int, depending on backend changes.
+            // The clone backend uses UUIDs (strings) for session_id in the DB schema mostly, but let's check.
+            // Actually, the new backend code uses UUIDs (String) for session_id.
+            // But _sessionId variable is defined as int? in this file (line 28).
+            // We need to change _sessionId to String? or dynamic?
+            // For now, let's cast to String then try parse, or just store as is if we change type.
+            // Wait, let's fix the type of _sessionId in the State class first.
+             _sessionId = sid; 
         }
+        
         _stopThinkingAndShowAi(opening.isNotEmpty ? opening : _defaultGreeting);
       } else {
-        _stopThinkingAndShowAi(_defaultGreeting);
+        _stopThinkingAndShowAi("Error: ${resp.statusCode} - ${resp.body}");
       }
     } catch (e) {
-      _stopThinkingAndShowAi(_defaultGreeting);
+      _stopThinkingAndShowAi("Connection error: $e");
     }
   }
 
@@ -271,7 +291,7 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': userId,
-          'session_id': _sessionId?.toString() ?? (widget.sessionId.isEmpty ? null : int.tryParse(widget.sessionId)),
+          'session_id': _sessionId ?? (widget.sessionId.isEmpty ? null : widget.sessionId),
           'message': chatMessage.text,
         }),
       ).timeout(const Duration(seconds: 30));
@@ -280,8 +300,7 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
         final data = jsonDecode(response.body);
         final reply = data['reply'] ?? "لا يوجد رد.";
         if (_sessionId == null && data['session_id'] != null) {
-          final sid = data['session_id'];
-          _sessionId = sid is int ? sid : int.tryParse(sid.toString());
+          _sessionId = data['session_id'];
         }
         _stopThinkingAndShowAi(reply);
       } else {
