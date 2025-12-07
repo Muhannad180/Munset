@@ -502,6 +502,19 @@ class _TasksScreenState extends State<TasksScreen>
     return Column(children: weekWidgets);
   }
 
+  Widget buildTab(String title, int index) {
+    final bool isSelected = _tabController.index == index;
+    return Tab(
+      child: Text(
+        title,
+        style: TextStyle(
+          color: isSelected ? Colors.white : Colors.black54,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
   /// =============== الواجهة ===============
   @override
   Widget build(BuildContext context) {
@@ -514,26 +527,25 @@ class _TasksScreenState extends State<TasksScreen>
           elevation: 0,
           title: const Text(
             "الأنشطة",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(50),
+            child: Container(
+              color: const Color(0xFFB2BEC3),
             child: TabBar(
               controller: _tabController,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              indicatorColor: Colors.white,
-              indicatorWeight: 3,
-              labelStyle: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 16),
+                indicator: const BoxDecoration(),
               onTap: (index) {
                 _pageController.jumpToPage(index);
               },
-              tabs: const [
-                Tab(text: "المهام"),
-                Tab(text: "العادات"),
-                Tab(text: "الإنجازات"),
+                tabs: [
+                  buildTab("المهام", 0),
+                  buildTab("العادات", 1),
+                  buildTab("الإنجازات", 2),
               ],
+              ),
             ),
           ),
         ),

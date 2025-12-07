@@ -22,7 +22,9 @@ class _MainNavigationState extends State<MainNavigation> {
     super.initState();
     _pages = [
       HomePage(refreshNotifier: _refreshHome),
-      Journal(),
+      Journal(onJournalAdded: () {
+        _refreshHome.value = !_refreshHome.value;
+      }),
       Sessions(),
       TasksScreen(onDataUpdated: () {
         // Trigger refresh in Home

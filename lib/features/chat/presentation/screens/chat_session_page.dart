@@ -12,12 +12,14 @@ class ChatSessionPage extends StatefulWidget {
   final String sessionId;
   // أزلنا sessionNumber إذا لم يكن مستخدماً في الباك إند حالياً أو جعله اختيارياً
   final int? sessionNumber; 
+  final bool isCompleted;
 
   const ChatSessionPage({
     Key? key,
     required this.sessionTitle,
     required this.sessionId,
     this.sessionNumber,
+    this.isCompleted = false,
   }) : super(key: key);
 
   @override
@@ -33,7 +35,8 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
 
   static const String _apiUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'https://munset-backend.onrender.com/chat',
+    // defaultValue: 'https://munset-backend.onrender.com/chat', // Render
+    defaultValue: 'http://127.0.0.1:10000/chat', // Localhost
   );
 
   static const String _defaultGreeting = "أهلاً! كيف يمكنني مساعدتك اليوم؟";
@@ -70,7 +73,7 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     } catch (e) {
       debugPrint("Supabase auth fetch failed: $e");
     }
-    return userId;
+    return userId.trim();
   }
 
   void _startThinking() {
@@ -127,13 +130,8 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     _startThinking();
     final userId = _getUserId();
     
-    // If we already have a numeric ID (passed from previous screen), use it without starting a new session on backend unless necessary
-    // But backend /start-session is designed to resume or start based on number.
-    
     try {
       final startUri = Uri.parse(_apiUrl.replaceFirst('/chat', '/start-session'));
-      
-      // Force integers for session_number
       final sNum = widget.sessionNumber ?? 1;
       
       final body = {
@@ -152,24 +150,72 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
         final opening = data['opening_message'] ?? data['openingMessage'] ?? '';
         final sid = data['session_id'] ?? data['sessionId'];
         
-        // Parse session ID correctly
         if (sid != null) {
-            // It might come as a String UUID or an int, depending on backend changes.
-            // The clone backend uses UUIDs (strings) for session_id in the DB schema mostly, but let's check.
-            // Actually, the new backend code uses UUIDs (String) for session_id.
-            // But _sessionId variable is defined as int? in this file (line 28).
-            // We need to change _sessionId to String? or dynamic?
-            // For now, let's cast to String then try parse, or just store as is if we change type.
-            // Wait, let's fix the type of _sessionId in the State class first.
-             _sessionId = sid; 
+             _sessionId = sid.toString(); 
         }
         
-        _stopThinkingAndShowAi(opening.isNotEmpty ? opening : _defaultGreeting);
+        // Fetch History
+        await _loadHistory(_sessionId.toString());
+
+        // If no messages loaded (new session), show opening
+        if (messages.isEmpty && opening.isNotEmpty) {
+           _stopThinkingAndShowAi(opening);
+        } else {
+          // If messages loaded, just stop thinking indicator
+           _thinkingTimer?.cancel();
+           _thinkingTimer = null;
+           _isAwaitingResponse = false;
+           if(mounted) setState(() { _thinkingMessage = null; });
+        }
+        
       } else {
         _stopThinkingAndShowAi("Error: ${resp.statusCode} - ${resp.body}");
       }
     } catch (e) {
       _stopThinkingAndShowAi("Connection error: $e");
+    }
+  }
+
+  Future<void> _loadHistory(String sessionId) async {
+    try {
+      // If session is NOT completed (Active), filter by last 24 hours
+      // If session IS completed, fetch all history
+      String url = _apiUrl.replaceFirst('/chat', '/session-history?session_id=$sessionId');
+      if (!widget.isCompleted) {
+        url += '&hours=24';
+      }
+      
+      final historyUri = Uri.parse(url);
+      final resp = await http.get(historyUri);
+      
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        final history = data['history'] as List<dynamic>;
+        
+        final List<ChatMessage> loaded = [];
+        
+        for (var item in history) {
+           final content = item['message'] != null ? item['message']['content'] : '';
+           if (content == null || content.isEmpty) continue;
+           
+           final sender = item['sender'];
+           final isUser = sender == 'user';
+           
+           loaded.add(ChatMessage(
+             user: isUser ? currentUser : aiUser, 
+             text: content,
+             createdAt: DateTime.parse(item['created_at'] ?? DateTime.now().toIso8601String()),
+           ));
+        }
+        
+        if (mounted) {
+           setState(() {
+             messages = loaded.reversed.toList();
+           });
+        }
+      }
+    } catch (e) {
+      debugPrint("History load error: $e");
     }
   }
 
@@ -180,8 +226,20 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           title: Text("إنهاء الجلسة", style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
-          content: Text("هل تريد حقاً إنهاء هذه الجلسة والخروج؟", style: GoogleFonts.cairo()),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("هل تريد بالفعل الخروج ؟", style: GoogleFonts.cairo(fontSize: 16)),
+              const SizedBox(height: 10),
+              Text(
+                "ملاحظة: سيتم فقدان جميع التقدم في هذه الجلسة.", 
+                style: GoogleFonts.cairo(color: Colors.red, fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -189,12 +247,11 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                // هنا يمكن إضافة كود لحفظ التلخيص إذا وجد
-                Navigator.pop(ctx); // إغلاق الـ Dialog
-                Navigator.pop(context); // الخروج من الصفحة
+                Navigator.pop(ctx); 
+                Navigator.pop(context); 
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: Text("خروج", style: GoogleFonts.cairo(color: Colors.white)),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              child: Text("تأكيد الخروج", style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -219,60 +276,75 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context), // This saves progress implicitly by keeping the session alive on backend
           ),
           actions: [
             // زر الخروج
             IconButton(
-              icon: const Icon(Icons.exit_to_app, color: Colors.white),
+              icon: const Icon(Icons.exit_to_app, color: Colors.white), // Red icon as requested
               tooltip: "إنهاء الجلسة",
               onPressed: _confirmExitSession,
             ),
           ],
         ),
-        body: DashChat(
-          currentUser: currentUser,
-          onSend: _sendMessage,
-          messages: messages,
-          inputOptions: InputOptions(
-            inputDisabled: _isAwaitingResponse,
-            inputDecoration: InputDecoration(
-              hintText: "اكتب رسالتك هنا...",
-              hintStyle: GoogleFonts.cairo(color: Colors.grey),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(25),
-                borderSide: BorderSide.none,
+        body: Column(
+          children: [
+             if (widget.isCompleted)
+              Container(
+                width: double.infinity,
+                color: Colors.grey[300],
+                padding: const EdgeInsets.all(8),
+                child: Text("هذه الجلسة منتهية (للقراءة فقط)", style: GoogleFonts.cairo(color: Colors.black54), textAlign: TextAlign.center),
               ),
-            ),
-            sendButtonBuilder: (onSend) {
-              return IconButton(
-                icon: Icon(Icons.send_rounded, color: primaryColor, size: 30),
-                onPressed: onSend,
-              );
-            },
-          ),
-          messageOptions: MessageOptions(
-            showOtherUsersAvatar: false,
-            showCurrentUserAvatar: false,
-            // تنسيق رسائل المستخدم (أخضر تركواز)
-            currentUserContainerColor: primaryColor,
-            currentUserTextColor: Colors.white,
-            // تنسيق رسائل الـ AI (أبيض/رمادي)
-            containerColor: Colors.white,
-            textColor: Colors.black87,
-            messageTextBuilder: (message, previousMessage, nextMessage) {
-              return Text(
-                message.text,
-                style: GoogleFonts.cairo(
-                  color: message.user.id == currentUser.id ? Colors.white : Colors.black87,
-                  fontSize: 16,
+             Expanded(
+               child: DashChat(
+                currentUser: currentUser,
+                onSend: _sendMessage,
+                messages: messages,
+                readOnly: widget.isCompleted, 
+                inputOptions: InputOptions(
+                  inputDisabled: _isAwaitingResponse || widget.isCompleted,
+                  inputDecoration: InputDecoration(
+                    hintText: widget.isCompleted ? "الجلسة مغلقة" : "اكتب رسالتك هنا...",
+                    hintStyle: GoogleFonts.cairo(color: Colors.grey),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(25),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  sendButtonBuilder: (onSend) {
+                    if (widget.isCompleted) return const SizedBox.shrink();
+                    return IconButton(
+                      icon: Icon(Icons.send_rounded, color: primaryColor, size: 30),
+                      onPressed: onSend,
+                    );
+                  },
                 ),
-              );
-            },
-          ),
+                messageOptions: MessageOptions(
+                  showOtherUsersAvatar: false,
+                  showCurrentUserAvatar: false,
+                  // تنسيق رسائل المستخدم (أخضر تركواز)
+                  currentUserContainerColor: primaryColor,
+                  currentUserTextColor: Colors.white,
+                  // تنسيق رسائل الـ AI (أبيض/رمادي)
+                  containerColor: Colors.white,
+                  textColor: Colors.black87,
+                  messageTextBuilder: (message, previousMessage, nextMessage) {
+                    return Text(
+                      message.text,
+                      style: GoogleFonts.cairo(
+                        color: message.user.id == currentUser.id ? Colors.white : Colors.black87,
+                        fontSize: 16,
+                      ),
+                    );
+                  },
+                ),
+               ),
+             ),
+          ],
         ),
       ),
     );
@@ -294,7 +366,7 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
           'session_id': _sessionId ?? (widget.sessionId.isEmpty ? null : widget.sessionId),
           'message': chatMessage.text,
         }),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
