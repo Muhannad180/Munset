@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/features/auth/presentation/screens/signin_screen.dart';
 import 'dart:ui' as ui;
+import 'package:test1/features/home/presentation/screens/home.dart';
+import 'package:test1/core/theme/app_style.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -76,7 +78,7 @@ class _ProfileState extends State<Profile> with SingleTickerProviderStateMixin {
     return Directionality(
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F9FA),
+        backgroundColor: AppStyle.bgTop(context),
         appBar: AppBar(title: const Text('ملفك الشخصي', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: primaryColor, elevation: 0, centerTitle: true),
         body: isLoading ? Center(child: CircularProgressIndicator(color: primaryColor)) : SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 30, 20, 100),
@@ -100,10 +102,10 @@ class _ProfileState extends State<Profile> with SingleTickerProviderStateMixin {
   }
 
   Widget _field(TextEditingController c, String label, {bool isNum = false, bool readOnly = false}) {
-    return Padding(padding: const EdgeInsets.only(bottom: 15), child: TextField(controller: c, readOnly: readOnly, keyboardType: isNum ? TextInputType.number : TextInputType.text, textAlign: TextAlign.right, decoration: InputDecoration(labelText: label, filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))));
+    return Padding(padding: const EdgeInsets.only(bottom: 15), child: TextField(controller: c, style: TextStyle(color: AppStyle.textMain(context)), readOnly: readOnly, keyboardType: isNum ? TextInputType.number : TextInputType.text, textAlign: TextAlign.right, decoration: InputDecoration(labelText: label, labelStyle: TextStyle(color: AppStyle.textSmall(context)), filled: true, fillColor: AppStyle.isDark(context) ? Colors.grey[800] : Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))));
   }
 
   Widget _dropdownGender() {
-    return Padding(padding: const EdgeInsets.only(bottom: 15), child: Container(padding: const EdgeInsets.symmetric(horizontal: 12), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), child: DropdownButtonHideUnderline(child: DropdownButton<String>(isExpanded: true, value: currentGender, items: ['ذكر', 'أنثى'].map((v) => DropdownMenuItem(value: v, child: Text(v, textAlign: TextAlign.right))).toList(), onChanged: (v) => setState(() => currentGender = v!)))));
+    return Padding(padding: const EdgeInsets.only(bottom: 15), child: Container(padding: const EdgeInsets.symmetric(horizontal: 12), decoration: BoxDecoration(color: AppStyle.isDark(context) ? Colors.grey[800] : Colors.white, borderRadius: BorderRadius.circular(12)), child: DropdownButtonHideUnderline(child: DropdownButton<String>(dropdownColor: AppStyle.cardBg(context), style: TextStyle(color: AppStyle.textMain(context)), isExpanded: true, value: currentGender, items: ['ذكر', 'أنثى'].map((v) => DropdownMenuItem(value: v, child: Text(v, textAlign: TextAlign.right))).toList(), onChanged: (v) => setState(() => currentGender = v!)))));
   }
 }

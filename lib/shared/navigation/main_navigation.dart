@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../features/home/presentation/screens/home.dart';
+import '../../core/theme/app_style.dart';
 import '../../features/chat/presentation/screens/sessions.dart';
 import '../../features/journal/presentation/screens/journal.dart';
 import '../../features/profile/presentation/screens/profile.dart';
@@ -59,17 +60,18 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   Widget _buildCustomBottomNavBar() {
+    bool isDark = AppStyle.isDark(context);
     return Container(
-      margin: EdgeInsets.all(16),
-      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.1),
             blurRadius: 20,
-            offset: Offset(0, 10),
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -88,6 +90,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   Widget _buildNavItem(IconData icon, int index) {
     bool isSelected = _currentIndex == index;
+    bool isDark = AppStyle.isDark(context);
 
     return GestureDetector(
       onTap: () {
@@ -103,13 +106,15 @@ class _MainNavigationState extends State<MainNavigation> {
         height: 40,
         decoration: BoxDecoration(
           color: isSelected
-              ? Color(0xFF8FD3C7).withOpacity(0.3)
+              ? (isDark ? const Color(0xFF4DB6AC).withOpacity(0.3) : const Color(0xFF8FD3C7).withOpacity(0.3))
               : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Icon(
           icon,
-          color: isSelected ? Color(0xFF2C5F5A) : Colors.grey[600],
+          color: isSelected 
+             ? (isDark ? const Color(0xFF80CBC4) : const Color(0xFF2C5F5A)) 
+             : (isDark ? Colors.white54 : Colors.grey[600]),
           size: 28,
         ),
       ),

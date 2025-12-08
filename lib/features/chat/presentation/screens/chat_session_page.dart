@@ -5,7 +5,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:ui' as ui;
-import 'package:google_fonts/google_fonts.dart'; // تأكد من وجود المكتبة
+import 'package:google_fonts/google_fonts.dart';
+import 'package:test1/features/home/presentation/screens/home.dart';
+import 'package:test1/core/theme/app_style.dart';
 
 class ChatSessionPage extends StatefulWidget {
   final String sessionTitle;
@@ -261,90 +263,98 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool isDark = AppStyle.isDark(context);
     return Directionality(
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: bgColor,
-        // 1. إضافة AppBar
+        backgroundColor: AppStyle.bgTop(context),
         appBar: AppBar(
-          backgroundColor: primaryColor,
+          backgroundColor: AppStyle.bgTop(context),
           title: Text(
             widget.sessionTitle,
-            style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 18),
+            style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 18, color: AppStyle.textMain(context)),
           ),
           centerTitle: true,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios),
-            onPressed: () => Navigator.pop(context), // This saves progress implicitly by keeping the session alive on backend
+            icon: Icon(Icons.arrow_back_ios, color: AppStyle.textMain(context)),
+            onPressed: () => Navigator.pop(context),
           ),
-          actions: [
-            // زر الخروج
-            IconButton(
-              icon: const Icon(Icons.exit_to_app, color: Colors.white), // Red icon as requested
-              tooltip: "إنهاء الجلسة",
-              onPressed: _confirmExitSession,
-            ),
-          ],
         ),
-        body: Column(
-          children: [
-             if (widget.isCompleted)
-              Container(
-                width: double.infinity,
-                color: Colors.grey[300],
-                padding: const EdgeInsets.all(8),
-                child: Text("هذه الجلسة منتهية (للقراءة فقط)", style: GoogleFonts.cairo(color: Colors.black54), textAlign: TextAlign.center),
-              ),
-             Expanded(
-               child: DashChat(
-                currentUser: currentUser,
-                onSend: _sendMessage,
-                messages: messages,
-                readOnly: widget.isCompleted, 
-                inputOptions: InputOptions(
-                  inputDisabled: _isAwaitingResponse || widget.isCompleted,
-                  inputDecoration: InputDecoration(
-                    hintText: widget.isCompleted ? "الجلسة مغلقة" : "اكتب رسالتك هنا...",
-                    hintStyle: GoogleFonts.cairo(color: Colors.grey),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(25),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  sendButtonBuilder: (onSend) {
-                    if (widget.isCompleted) return const SizedBox.shrink();
-                    return IconButton(
-                      icon: Icon(Icons.send_rounded, color: primaryColor, size: 30),
-                      onPressed: onSend,
-                    );
-                  },
+        body: Container(
+          decoration: BoxDecoration(gradient: AppStyle.mainGradient(context)),
+          child: Column(
+            children: [
+               if (widget.isCompleted)
+                Container(
+                  width: double.infinity,
+                  color: isDark ? Colors.grey[800] : Colors.grey[300],
+                  padding: const EdgeInsets.all(8),
+                  child: Text("هذه الجلسة منتهية (للقراءة فقط)", style: GoogleFonts.cairo(color: AppStyle.textSmall(context)), textAlign: TextAlign.center),
                 ),
-                messageOptions: MessageOptions(
-                  showOtherUsersAvatar: false,
-                  showCurrentUserAvatar: false,
-                  // تنسيق رسائل المستخدم (أخضر تركواز)
-                  currentUserContainerColor: primaryColor,
-                  currentUserTextColor: Colors.white,
-                  // تنسيق رسائل الـ AI (أبيض/رمادي)
-                  containerColor: Colors.white,
-                  textColor: Colors.black87,
-                  messageTextBuilder: (message, previousMessage, nextMessage) {
-                    return Text(
-                      message.text,
-                      style: GoogleFonts.cairo(
-                        color: message.user.id == currentUser.id ? Colors.white : Colors.black87,
-                        fontSize: 16,
+               Expanded(
+                 child: DashChat(
+                  currentUser: currentUser,
+                  onSend: _sendMessage,
+                  messages: messages,
+                  readOnly: widget.isCompleted, 
+                  inputOptions: InputOptions(
+                    inputDisabled: _isAwaitingResponse || widget.isCompleted,
+                    inputTextStyle: GoogleFonts.cairo(color: AppStyle.textMain(context)),
+                    inputDecoration: InputDecoration(
+                      hintText: widget.isCompleted ? "الجلسة مغلقة" : "اكتب رسالتك هنا...",
+                      hintStyle: GoogleFonts.cairo(color: AppStyle.textSmall(context)),
+                      filled: true,
+                      fillColor: AppStyle.cardBg(context),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: BorderSide.none,
                       ),
-                    );
-                  },
-                ),
+                    ),
+                    sendButtonBuilder: (onSend) {
+                      if (widget.isCompleted) return const SizedBox.shrink();
+                      return IconButton(
+                        icon: const Icon(Icons.send_rounded, color: AppStyle.primary, size: 30),
+                        onPressed: onSend,
+                      );
+                    },
+                  ),
+                  messageOptions: MessageOptions(
+                    showOtherUsersAvatar: true,
+                    showCurrentUserAvatar: false,
+                    avatarBuilder: (user, onPress, onLongPress) {
+                      if (user.id == aiUser.id) {
+                         return Container(
+                           padding: const EdgeInsets.all(8),
+                           decoration: const BoxDecoration(
+                             color: AppStyle.primary,
+                             shape: BoxShape.circle,
+                           ),
+                           child: const Icon(Icons.psychology, color: Colors.white, size: 20),
+                         );
+                      }
+                      return const SizedBox();
+                    },
+                    currentUserContainerColor: AppStyle.primary,
+                    currentUserTextColor: Colors.white,
+                    containerColor: AppStyle.cardBg(context),
+                    textColor: AppStyle.textMain(context),
+                    messageTextBuilder: (message, previousMessage, nextMessage) {
+                      return Text(
+                        message.text,
+                        style: GoogleFonts.cairo(
+                          color: message.user.id == currentUser.id ? Colors.white : AppStyle.textMain(context),
+                          fontSize: 16,
+                          height: 1.4,
+                        ),
+                      );
+                    },
+                  ),
+                 ),
                ),
-             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

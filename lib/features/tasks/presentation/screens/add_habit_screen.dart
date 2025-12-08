@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:test1/core/theme/app_style.dart';
+import 'dart:ui' as ui;
 
 class AddHabitPage extends StatefulWidget {
   const AddHabitPage({super.key});
@@ -16,48 +19,9 @@ class _AddHabitPageState extends State<AddHabitPage> {
   IconData selectedIcon = Icons.star;
   String? selectedCommonHabit;
 
-  final Color primaryColor = const Color(0xFF5E9E92);
-
   final List<String> commonHabits = [
-    "شرب ماء",
-    "رياضة",
-    "قراءة",
-    "تأمل",
-    "نوم مبكر",
-    "تنظيم الوقت",
-    "تعلم مهارة",
-    "مشي يومي",
-    "أكل صحي",
-    "كتابة مذكرات",
-    "شرب قهوة بدون سكر",
-    "تقليل السكر",
-    "تعلم لغة",
-    "الصلاة في وقتها",
-    "الأذكار",
-    "الاستحمام البارد",
-    "تنظيف الغرفة",
-    "مراجعة الدراسة",
-    "كتابة أهداف اليوم",
-    "التقليل من الجوال",
-    "عدم السهر",
-    "شرب شاي أخضر",
-    "ممارسة اليوغا",
-    "التواصل مع العائلة",
-    "عمل خير/صدقة",
-    "الامتنان",
-    "تعلم البرمجة",
-    "مراجعة الكود",
-    "الابتعاد عن السوشيال ميديا",
-    "الإقلاع عن عادة سيئة",
-    "ترتيب السرير",
-    "تحضير وجبة صحية",
-    "الخروج للمشي",
-    "الابتعاد عن الكافيين",
-    "شرب فيتامينات",
-    "جلسة استرخاء",
-    "مراجعة المصاريف",
-    "تحديد أولويات اليوم",
-    "أخرى",
+    "شرب ماء", "رياضة", "قراءة", "تأمل", "نوم مبكر", "تعلم مهارة", 
+    "مشي يومي", "أكل صحي", "كتابة مذكرات", "الأذكار"
   ];
 
   final Map<String, String> habitDescriptions = {
@@ -66,140 +30,91 @@ class _AddHabitPageState extends State<AddHabitPage> {
     "قراءة": "اقرأ 10 صفحات يوميًا.",
     "تأمل": "5 دقائق لتصفية ذهنك.",
     "نوم مبكر": "نم قبل 12 لراحة أفضل.",
-    "تنظيم الوقت": "رتّب مهام اليوم وحدد أولوياتك.",
     "تعلم مهارة": "تعلم 15 دقيقة من مهارة جديدة.",
     "مشي يومي": "امشِ 3000–8000 خطوة.",
     "أكل صحي": "تناول وجبات متوازنة.",
     "كتابة مذكرات": "اكتب ما حدث اليوم.",
-    "شرب قهوة بدون سكر": "قلّل السكر لتحسين صحتك.",
-    "تقليل السكر": "قلل الحلويات.",
-    "تعلم لغة": "تعلم كلمة جديدة يوميًا.",
-    "الصلاة في وقتها": "حافظ على صلواتك.",
     "الأذكار": "اذكر الله صباحًا ومساءً.",
-    "الاستحمام البارد": "استحم بماء بارد لتحسين نشاطك.",
-    "تنظيف الغرفة": "رتّب غرفتك 5 دقائق.",
-    "مراجعة الدراسة": "راجع 20 دقيقة.",
-    "كتابة أهداف اليوم": "حدد 3 أهداف فقط.",
-    "التقليل من الجوال": "استخدم الجوال أقل من ساعة.",
-    "عدم السهر": "تجنب السهر.",
-    "شرب شاي أخضر": "كوب يوميًا.",
-    "ممارسة اليوغا": "10 دقائق يوميًا.",
-    "التواصل مع العائلة": "تواصل يوميًا.",
-    "عمل خير/صدقة": "قدّم صدقة بسيطة.",
-    "الامتنان": "اكتب 3 أمور ممتن لها.",
-    "تعلم البرمجة": "تعلم مفهوم برمجي جديد.",
-    "مراجعة الكود": "حسن كود سابق.",
-    "الابتعاد عن السوشيال ميديا": "قلل وقتها 50%.",
-    "الإقلاع عن عادة سيئة": "خطوة صغيرة يوميًا.",
-    "ترتيب السرير": "رتّب سريرك عند الاستيقاظ.",
-    "تحضير وجبة صحية": "حضّر وجبة مفيدة.",
-    "الخروج للمشي": "امش في الهواء الطلق.",
-    "الابتعاد عن الكافيين": "تجنب الكافيين بعد 6 مساءً.",
-    "شرب فيتامينات": "خذ مكملاتك.",
-    "جلسة استرخاء": "تنفس 10 دقائق.",
-    "مراجعة المصاريف": "راجع مصروفاتك.",
-    "تحديد أولويات اليوم": "حدد أهم 3 مهام.",
   };
 
   final List<IconData> iconsList = [
-    Icons.water_drop,
-    Icons.local_drink,
-    Icons.sports_gymnastics,
-    Icons.fitness_center,
-    Icons.directions_run,
-    Icons.self_improvement,
-    Icons.book,
-    Icons.menu_book,
-    Icons.computer,
-    Icons.code,
-    Icons.school,
-    Icons.edit,
-    Icons.cleaning_services,
-    Icons.bedtime,
-    Icons.wb_sunny,
-    Icons.nightlight_round,
-    Icons.family_restroom,
-    Icons.favorite,
-    Icons.star,
-    Icons.check_circle,
-    Icons.task_alt,
-    Icons.timelapse,
-    Icons.alarm,
-    Icons.health_and_safety,
-    Icons.spa,
-    Icons.face,
-    Icons.person,
-    Icons.air,
-    Icons.handshake,
-    Icons.volunteer_activism,
-    Icons.mosque,
-    Icons.run_circle,
-    Icons.directions_walk,
-    Icons.fastfood,
-    Icons.local_cafe,
-    Icons.energy_savings_leaf,
+    Icons.water_drop, Icons.local_drink, Icons.sports_gymnastics, Icons.fitness_center,
+    Icons.directions_run, Icons.self_improvement, Icons.book, Icons.menu_book,
+    Icons.computer, Icons.code, Icons.school, Icons.edit, Icons.cleaning_services,
+    Icons.bedtime, Icons.wb_sunny, Icons.nightlight_round, Icons.family_restroom,
+    Icons.favorite, Icons.star, Icons.check_circle, Icons.task_alt, Icons.timelapse,
+    Icons.alarm, Icons.health_and_safety, Icons.spa, Icons.face, Icons.person,
+    Icons.air, Icons.handshake, Icons.volunteer_activism, Icons.mosque, Icons.run_circle,
+    Icons.directions_walk, Icons.fastfood, Icons.local_cafe, Icons.energy_savings_leaf,
   ];
 
   @override
   Widget build(BuildContext context) {
-    bool isOtherSelected = selectedCommonHabit == "أخرى";
-
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: ui.TextDirection.rtl,
       child: Scaffold(
+        backgroundColor: AppStyle.bgTop(context),
         appBar: AppBar(
-          title: const Text(
+          title: Text(
             "إضافة عادة جديدة",
-            style: TextStyle(color: Colors.black),
+            style: GoogleFonts.cairo(
+              color: AppStyle.textMain(context),
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
           centerTitle: true,
+          iconTheme: IconThemeData(color: AppStyle.textMain(context)),
         ),
-        body: buildBody(),
+        body: ListView(
+          padding: const EdgeInsets.all(20.0),
+          physics: const BouncingScrollPhysics(),
+          children: [
+            Text(
+              "اقتراحات سريعة",
+              style: GoogleFonts.cairo(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppStyle.textMain(context),
+              ),
+            ),
+            const SizedBox(height: 12),
+            buildHabitChips(),
+
+            const SizedBox(height: 25),
+            _buildSectionLabel("تفاصيل العادة"),
+            const SizedBox(height: 10),
+            buildTitleField(),
+            const SizedBox(height: 12),
+            buildDescriptionField(),
+
+            const SizedBox(height: 25),
+            _buildSectionLabel("التكرار"),
+            const SizedBox(height: 10),
+            buildFrequencyRow(),
+
+            const SizedBox(height: 25),
+            _buildSectionLabel("أيقونة"),
+            const SizedBox(height: 10),
+            buildIconsGrid(),
+
+            const SizedBox(height: 40),
+            buildSaveButton(),
+            const SizedBox(height: 30),
+          ],
+        ),
       ),
     );
   }
 
-  Widget buildBody() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "العادات الشائعة",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-
-          buildHabitChips(),
-
-          const SizedBox(height: 20),
-          buildTitleField(),
-          const SizedBox(height: 10),
-          buildDescriptionField(),
-
-          const SizedBox(height: 25),
-          const Text(
-            "عدد مرات التكرار",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 10),
-          buildFrequencyRow(),
-
-          const SizedBox(height: 25),
-          const Text(
-            "اختر أيقونة",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 10),
-
-          buildIconsList(),
-
-          const Spacer(),
-
-          buildSaveButton(),
-        ],
+  Widget _buildSectionLabel(String label) {
+    return Text(
+      label,
+      style: GoogleFonts.cairo(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: AppStyle.textMain(context),
       ),
     );
   }
@@ -207,141 +122,174 @@ class _AddHabitPageState extends State<AddHabitPage> {
   Widget buildHabitChips() {
     return SizedBox(
       height: 45,
-      child: ListView(
+      child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        reverse: true,
-        children: commonHabits.map((habit) {
+        physics: const BouncingScrollPhysics(),
+        itemCount: commonHabits.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final habit = commonHabits[index];
           bool isSelected = selectedCommonHabit == habit;
           return GestureDetector(
             onTap: () {
               setState(() {
                 selectedCommonHabit = habit;
-                if (habit != "أخرى") {
-                  _titleController.text = habit;
-                  _descController.text = habitDescriptions[habit] ?? "";
-                } else {
-                  _titleController.clear();
-                  _descController.clear();
-                }
+                _titleController.text = habit;
+                _descController.text = habitDescriptions[habit] ?? "";
               });
             },
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: isSelected ? primaryColor : Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(12),
+                color: isSelected ? AppStyle.primary : AppStyle.cardBg(context),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: isSelected 
+                  ? [BoxShadow(color: AppStyle.primary.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))] 
+                  : [],
+                border: Border.all(
+                  color: isSelected ? Colors.transparent : Colors.grey.withOpacity(0.2),
+                ),
               ),
-              child: Text(
-                habit,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.black87,
-                  fontWeight: FontWeight.w500,
+              child: Center(
+                child: Text(
+                  habit,
+                  style: GoogleFonts.cairo(
+                    color: isSelected ? Colors.white : AppStyle.textMain(context),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
           );
-        }).toList(),
+        },
       ),
     );
   }
 
   Widget buildTitleField() {
-    return TextField(
-      controller: _titleController,
-      textAlign: TextAlign.right,
-      decoration: InputDecoration(
-        hintText: "اكتب اسم العادة",
-        filled: true,
-        fillColor: Colors.grey.shade100,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppStyle.cardBg(context),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+           BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: TextField(
+        controller: _titleController,
+        style: GoogleFonts.cairo(color: AppStyle.textMain(context)),
+        textAlign: TextAlign.right,
+        decoration: InputDecoration(
+          hintText: "اسم العادة (مثلاً: قراءة)",
+          hintStyle: GoogleFonts.cairo(color: AppStyle.textSmall(context)),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
       ),
     );
   }
 
   Widget buildDescriptionField() {
-    return TextField(
-      controller: _descController,
-      textAlign: TextAlign.right,
-      maxLines: 3,
-      decoration: InputDecoration(
-        hintText: "اكتب وصف العادة",
-        filled: true,
-        fillColor: Colors.grey.shade100,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppStyle.cardBg(context),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+           BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: TextField(
+        controller: _descController,
+        style: GoogleFonts.cairo(color: AppStyle.textMain(context)),
+        textAlign: TextAlign.right,
+        maxLines: 3,
+        decoration: InputDecoration(
+          hintText: "وصف بسيط...",
+          hintStyle: GoogleFonts.cairo(color: AppStyle.textSmall(context)),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
       ),
     );
   }
 
   Widget buildFrequencyRow() {
-    return Row(
-      children: [
-        buildFrequencyOption("يومي"),
-        const SizedBox(width: 10),
-        buildFrequencyOption("أسبوعي"),
-        const SizedBox(width: 10),
-        buildFrequencyOption("شهري"),
-      ],
-    );
-  }
-
-  Widget buildFrequencyOption(String label) {
-    bool isSelected = selectedFrequency == label;
-    return GestureDetector(
-      onTap: () {
-        setState(() => selectedFrequency = label);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? primaryColor : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+    const options = ["يومي", "أسبوعي", "شهري"];
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppStyle.cardBg(context),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: options.map((opt) {
+          bool isSelected = selectedFrequency == opt;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => selectedFrequency = opt),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppStyle.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  opt,
+                  style: GoogleFonts.cairo(
+                    color: isSelected ? Colors.white : AppStyle.textMain(context),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget buildIconsList() {
-    return SizedBox(
-      height: 60,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        reverse: true,
-        children: iconsList.map((icon) {
+  Widget buildIconsGrid() {
+    return Container(
+      height: 200, // Fixed height for grid
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppStyle.cardBg(context),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: GridView.builder(
+        physics: const BouncingScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 5,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        ),
+        itemCount: iconsList.length,
+        itemBuilder: (context, index) {
+          final icon = iconsList[index];
           bool isSelected = selectedIcon == icon;
           return GestureDetector(
             onTap: () => setState(() => selectedIcon = icon),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 8),
-              width: 55,
-              height: 55,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? primaryColor.withOpacity(0.3)
-                    : Colors.grey.shade100,
+                color: isSelected ? AppStyle.primary.withOpacity(0.2) : Colors.transparent,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? primaryColor : Colors.grey.shade300,
+                  color: isSelected ? AppStyle.primary : Colors.grey.withOpacity(0.2),
                   width: 2,
                 ),
               ),
-              child: Icon(icon, size: 28, color: Colors.black87),
+              child: Icon(
+                icon,
+                color: isSelected ? AppStyle.primary : AppStyle.textMain(context),
+                size: 24,
+              ),
             ),
           );
-        }).toList(),
+        },
       ),
     );
   }
@@ -352,26 +300,31 @@ class _AddHabitPageState extends State<AddHabitPage> {
       child: ElevatedButton(
         onPressed: _saveHabit,
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          backgroundColor: AppStyle.primary,
+          padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
           ),
+          elevation: 5,
+          shadowColor: AppStyle.primary.withOpacity(0.4),
         ),
-        child: const Text(
-          "حفظ",
-          style: TextStyle(fontSize: 17, color: Colors.white),
+        child: Text(
+          "حفظ العادة",
+          style: GoogleFonts.cairo(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
       ),
     );
   }
 
-  /// حفظ العادة في Supabase مع كل البيانات
   Future<void> _saveHabit() async {
     if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("الرجاء كتابة اسم العادة")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("الرجاء كتابة اسم العادة")),
+      );
       return;
     }
 
@@ -379,33 +332,31 @@ class _AddHabitPageState extends State<AddHabitPage> {
     final user = supabase.auth.currentUser;
 
     if (user == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("لا يوجد مستخدم مسجل")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("لا يوجد مستخدم مسجل")),
+      );
       return;
     }
-
-    final String iconName = selectedIcon.codePoint.toString();
 
     try {
       final response = await supabase.from('habits').insert({
         "user_id": user.id,
         "title": _titleController.text.trim(),
         "description": _descController.text.trim(),
-        "icon_name": iconName,
+        "icon_name": selectedIcon.codePoint.toString(),
         "completion_count": 0,
         "created_at": DateTime.now().toIso8601String(),
       }).select();
 
       if (!mounted) return;
-
       Navigator.pop(context, response.first);
     } catch (e) {
+      debugPrint("Error saving habit: $e");
       if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("خطأ أثناء الحفظ: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("خطأ: $e")),
+      );
     }
   }
 }
+

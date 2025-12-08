@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:test1/features/chat/presentation/screens/chat_session_page.dart';
 import 'dart:io';
+import 'package:test1/features/home/presentation/screens/home.dart';
+import 'package:test1/core/theme/app_style.dart';
 
 class Sessions extends StatelessWidget {
   const Sessions({super.key});
@@ -11,7 +13,7 @@ class Sessions extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F9FA),
+        backgroundColor: AppStyle.bgTop(context),
         appBar: AppBar(
           title: const Text('الجلسات', style: TextStyle(fontWeight: FontWeight.bold)),
           backgroundColor: primaryColor,
@@ -44,11 +46,16 @@ class Sessions extends StatelessWidget {
         }
       },
       child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: primaryColor, // Solid Teal
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: primaryColor.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))],
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF5E9E92), Color(0xFF80CBC4)],
+          ),
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [BoxShadow(color: const Color(0xFF5E9E92).withOpacity(0.4), blurRadius: 15, offset: const Offset(0, 8))],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -56,12 +63,25 @@ class Sessions extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 5),
-                Text('$date - $status', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(isLocked ? Icons.lock_outline : (isDone ? Icons.check_circle_outline : Icons.access_time), size: 16, color: Colors.white70),
+                    const SizedBox(width: 6),
+                    Text('$date - $status', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                  ],
+                ),
               ],
             ),
-            Icon(icon, color: Colors.white, size: 30),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.25),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: Colors.white, size: 28),
+            ),
           ],
         ),
       ),

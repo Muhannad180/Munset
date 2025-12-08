@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:test1/data/services/auth_service.dart';
-import 'dart:ui' as ui;
-import 'package:fl_chart/fl_chart.dart';
-import 'package:test1/features/tasks/presentation/screens/add_habit_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:test1/core/theme/app_style.dart';
+import 'package:test1/data/services/auth_service.dart';
+import 'package:test1/features/tasks/presentation/screens/add_habit_screen.dart';
+import 'package:test1/features/tasks/presentation/widgets/achievements_view.dart';
+import 'package:test1/features/tasks/presentation/widgets/habit_card.dart';
+import 'package:test1/features/tasks/presentation/widgets/task_tile.dart';
+import 'dart:ui' as ui;
 
 class TasksScreen extends StatefulWidget {
   final VoidCallback? onDataUpdated;
@@ -14,35 +17,17 @@ class TasksScreen extends StatefulWidget {
   State<TasksScreen> createState() => _TasksScreenState();
 }
 
-class _TasksScreenState extends State<TasksScreen>
-    with TickerProviderStateMixin {
+class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin {
   final supabase = Supabase.instance.client;
   final authService = AuthService();
-  final Color primaryColor = const Color(0xFF5E9E92);
-
+  
   List<Map<String, dynamic>> tasks = [];
   List<Map<String, dynamic>> habits = [];
   bool isLoading = true;
 
   late AnimationController _btnController;
-  late PageController _pageController;
   late TabController _tabController;
-
-  int currentPage = 0;
-
   final DateTime startDate = DateTime.now();
-
-  void _openAddHabitPage() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const AddHabitPage()),
-    );
-
-    if (result != null) {
-      _loadAllData();
-      widget.onDataUpdated?.call();
-    }
-  }
 
   @override
   void initState() {
@@ -51,7 +36,6 @@ class _TasksScreenState extends State<TasksScreen>
       vsync: this,
       duration: const Duration(milliseconds: 100),
     );
-    _pageController = PageController();
     _tabController = TabController(length: 3, vsync: this);
     _loadAllData();
   }
@@ -89,14 +73,12 @@ class _TasksScreenState extends State<TasksScreen>
     }
   }
 
-  /// زيادة عداد إنجاز العادة
   Future<void> _incrementHabitCount(Map<String, dynamic> habit) async {
     final habitId = habit['id'];
     final currentCount = habit['completion_count'] ?? 0;
     final newCount = currentCount + 1;
 
     try {
-      // تحديث محلي فوري
       setState(() {
         int index = habits.indexWhere((h) => h['id'] == habitId);
         if (index != -1) {
@@ -104,7 +86,6 @@ class _TasksScreenState extends State<TasksScreen>
         }
       });
 
-      // تحديث في قاعدة البيانات
       await supabase
           .from('habits')
           .update({'completion_count': newCount})
@@ -144,634 +125,16 @@ class _TasksScreenState extends State<TasksScreen>
     }
   }
 
-  Widget _tasksPage() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionHeader("قوائم المهام"),
-          const SizedBox(height: 10),
-          weeklyTasksSection(),
-        ],
-      ),
+  void _openAddHabitPage() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddHabitPage()),
     );
-  }
 
-  Widget _habitsPage() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionHeader("العادات اليومية"),
-          const SizedBox(height: 15),
-          if (habits.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(40.0),
-                child: Text(
-                  "لا توجد عادات\nاضغط + لإضافة عادة جديدة",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
-                ),
-              ),
-            ),
-          ...habits.map((e) => _habitCard(e)),
-          const SizedBox(height: 160),
-        ],
-      ),
-    );
-  }
-
-  Widget _chartPage() {
-    final allItems = [...habits, ...tasks];
-    final completedCount = allItems
-        .where((t) => t['is_completed'] == true)
-        .length;
-
-    // حساب مجموع completion_count لكل العادات
-    final totalCompletions = habits.fold<int>(0, (sum, habit) {
-      final count = habit['completion_count'];
-      return sum +
-          (count is int ? count : (count is double ? count.toInt() : 0));
-    });
-
-    // حساب أعلى قيمة completion_count للرسم البياني
-    final maxHabitCompletion = habits.isEmpty
-        ? 10.0
-        : habits.fold<double>(10.0, (max, habit) {
-            final count = habit['completion_count'];
-            final val = count is int
-                ? count.toDouble()
-                : (count is double ? count : 0.0);
-            return val > max ? val : max;
-          });
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            "نظرة عامة على المهام والعادات",
-            style: GoogleFonts.cairo(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
-            ),
-            textAlign: TextAlign.right,
-          ),
-          const SizedBox(height: 10),
-
-          Row(
-            children: [
-              Expanded(
-                child: _statCard(
-                  "المهام المكتملة",
-                  "$completedCount",
-                  Colors.blue[50]!,
-                ),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: _statCard(
-                  "إنجازات العادات",
-                  "$totalCompletions",
-                  Colors.green[50]!,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // الرسم البياني العمودي للعادات
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue[50],
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "إنجاز العادات",
-                      style: GoogleFonts.cairo(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    const Icon(Icons.bar_chart, color: Colors.grey),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                if (habits.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: Text(
-                        "لا توجد عادات لعرضها",
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  )
-                else
-                  SizedBox(
-                    height: 220,
-                    child: BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: maxHabitCompletion + 2,
-                        barTouchData: BarTouchData(enabled: false),
-                        titlesData: FlTitlesData(
-                          show: true,
-                          topTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 30,
-                              getTitlesWidget: (value, meta) {
-                                final index = value.toInt();
-                                if (index < 0 || index >= habits.length) {
-                                  return const SizedBox();
-                                }
-                                final habit = habits[index];
-                                final count = habit['completion_count'];
-                                final countVal = count is int
-                                    ? count
-                                    : (count is double ? count.toInt() : 0);
-
-                                // إظهار الرقم فقط إذا كان أكبر من 0
-                                if (countVal > 0) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 4.0),
-                                    child: Text(
-                                      '$countVal',
-                                      style: GoogleFonts.cairo(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: primaryColor,
-                                      ),
-                                    ),
-                                  );
-                                }
-                                return const SizedBox();
-                              },
-                            ),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          leftTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 35,
-                              getTitlesWidget: (value, meta) {
-                                if (value.toInt() < 0 ||
-                                    value.toInt() >= habits.length) {
-                                  return const SizedBox();
-                                }
-                                final habit = habits[value.toInt()];
-                                final title = habit['title'] ?? '';
-                                // أول 5 أحرف من العنوان
-                                final shortTitle = title.length > 5
-                                    ? title.substring(0, 5)
-                                    : title;
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(
-                                    shortTitle,
-                                    style: GoogleFonts.cairo(
-                                      fontSize: 10,
-                                      color: Colors.grey[700],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        gridData: const FlGridData(show: false),
-                        borderData: FlBorderData(show: false),
-                        barGroups: List.generate(habits.length, (index) {
-                          final habit = habits[index];
-                          final count = habit['completion_count'];
-                          final yVal = count is int
-                              ? count.toDouble()
-                              : (count is double ? count : 0.0);
-                          return BarChartGroupData(
-                            x: index,
-                            barRods: [
-                              BarChartRodData(
-                                toY: yVal > 0 ? yVal : 0.5,
-                                color: yVal > 0
-                                    ? primaryColor
-                                    : Colors.grey.shade300,
-                                width: habits.length > 5 ? 12 : 18,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ],
-                          );
-                        }),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // الدائرة (Pie Chart) - المهام المنجزة وغير المنجزة
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue[50],
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "المهام المنجزة والغير منجزة",
-                  style: GoogleFonts.cairo(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                if (allItems.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: Text(
-                        "لا توجد مهام لعرضها",
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  )
-                else
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      // Legend
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF4CAF50),
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    "منجزة: $completedCount",
-                                    style: GoogleFonts.cairo(
-                                      color: Colors.grey[700],
-                                      fontSize: 13,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFF9800),
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    "غير منجزة: ${allItems.length - completedCount}",
-                                    style: GoogleFonts.cairo(
-                                      color: Colors.grey[700],
-                                      fontSize: 13,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Chart
-                      SizedBox(
-                        width: 120,
-                        height: 120,
-                        child: PieChart(
-                          PieChartData(
-                            centerSpaceRadius: 35,
-                            sectionsSpace: 2,
-                            startDegreeOffset: -90,
-                            sections: [
-                              if (completedCount > 0)
-                                PieChartSectionData(
-                                  value: completedCount.toDouble(),
-                                  color: const Color(0xFF4CAF50),
-                                  radius: 25,
-                                  showTitle: false,
-                                ),
-                              if (allItems.length - completedCount > 0)
-                                PieChartSectionData(
-                                  value: (allItems.length - completedCount)
-                                      .toDouble(),
-                                  color: const Color(0xFFFF9800),
-                                  radius: 25,
-                                  showTitle: false,
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 80),
-        ],
-      ),
-    );
-  }
-
-  Widget _statCard(String title, String count, Color bgColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Text(
-            count,
-            style: GoogleFonts.cairo(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            title,
-            style: GoogleFonts.cairo(fontSize: 14, color: Colors.grey[600]),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// بطاقة العادة الجديدة مع عداد الإنجاز
-  Widget _habitCard(Map<String, dynamic> habit) {
-    final title = habit['title'] ?? '';
-    final description = habit['description'] ?? '';
-    final completionCount = habit['completion_count'] ?? 0;
-
-    final dynamic iconVal = habit['icon_name'];
-    int? codePoint;
-    if (iconVal is int) {
-      codePoint = iconVal;
-    } else if (iconVal is String) {
-      codePoint = int.tryParse(iconVal);
-    } else if (iconVal is double) {
-      codePoint = iconVal.toInt();
+    if (result != null) {
+      _loadAllData();
+      widget.onDataUpdated?.call();
     }
-
-    final IconData icon = codePoint != null
-        ? IconData(codePoint, fontFamily: 'MaterialIcons')
-        : Icons.star;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // أيقونة العادة
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: primaryColor, size: 28),
-          ),
-          const SizedBox(width: 15),
-
-          // النصوص (العنوان والوصف)
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.cairo(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                if (description.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: GoogleFonts.cairo(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // عداد الإنجاز
-          Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  "$completionCount",
-                  style: GoogleFonts.cairo(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: primaryColor,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // زر + لزيادة العدد
-              GestureDetector(
-                onTap: () => _incrementHabitCount(habit),
-                child: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: primaryColor,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: primaryColor.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.add, color: Colors.white, size: 24),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _taskTile(Map<String, dynamic> t, bool isHabit) {
-    final isDone = t['is_completed'] == true;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: isDone
-            ? Border.all(color: primaryColor.withOpacity(0.3))
-            : null,
-      ),
-      child: ListTile(
-        leading: Checkbox(
-          value: isDone,
-          activeColor: primaryColor,
-          onChanged: (_) => _toggleTask(t, isHabit),
-        ),
-        title: Text(
-          t['title'] ?? t['task'] ?? '',
-          style: TextStyle(
-            decoration: isDone ? TextDecoration.lineThrough : null,
-            color: isDone ? Colors.grey : Colors.black,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionHeader(String title) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: primaryColor,
-      ),
-    );
-  }
-
-  Widget weeklyTasksSection() {
-    List<Widget> weekWidgets = [];
-
-    for (int i = 1; i <= 8; i++) {
-      DateTime weekStart = startDate.add(Duration(days: (i - 1) * 7));
-      DateTime weekEnd = weekStart.add(const Duration(days: 7));
-
-      bool isAvailable = DateTime.now().isAfter(weekStart);
-      bool isExpired = DateTime.now().isAfter(weekEnd);
-
-      weekWidgets.add(
-        Container(
-          margin: const EdgeInsets.only(bottom: 15),
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            color: isAvailable ? Colors.white : Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isAvailable ? primaryColor : Colors.grey),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "قائمة مهام الأسبوع $i",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: isAvailable ? primaryColor : Colors.grey.shade700,
-                    ),
-                  ),
-                  Text(
-                    "ينتهي: ${weekEnd.toString().substring(0, 10)}",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isExpired ? Colors.red : Colors.black,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              if (!isAvailable)
-                const Text(
-                  "سيتم فتح مهام هذا الأسبوع لاحقاً",
-                  style: TextStyle(color: Colors.black54),
-                ),
-
-              if (isAvailable)
-                ...tasks.map((e) => _taskTile(e, false)).toList(),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(children: weekWidgets);
   }
 
   @override
@@ -779,81 +142,200 @@ class _TasksScreenState extends State<TasksScreen>
     return Directionality(
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F9FA),
-        appBar: AppBar(
-          backgroundColor: primaryColor,
-          elevation: 0,
-          title: const Text(
-            "الأنشطة",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          centerTitle: true,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(50),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              indicatorColor: Colors.white,
-              indicatorWeight: 3,
-              labelStyle: GoogleFonts.cairo(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+        backgroundColor: AppStyle.bgTop(context),
+        body: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  "الأنشطة",
+                  style: GoogleFonts.cairo(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppStyle.textMain(context),
+                  ),
+                ),
               ),
-              onTap: (index) {
-                _pageController.jumpToPage(index);
-              },
-              tabs: const [
-                Tab(text: "المهام"),
-                Tab(text: "العادات"),
-                Tab(text: "الإنجازات"),
-              ],
-            ),
+              const SizedBox(height: 20),
+
+              // Custom Tab Bar
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppStyle.isDark(context) ? Colors.black26 : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicator: BoxDecoration(
+                    color: AppStyle.primary,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppStyle.primary.withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  labelColor: Colors.white,
+                  unselectedLabelColor: AppStyle.textSmall(context),
+                  labelStyle: GoogleFonts.cairo(fontWeight: FontWeight.bold),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  tabs: const [
+                    Tab(text: "المهام"),
+                    Tab(text: "العادات"),
+                    Tab(text: "الإنجازات"),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Content using TabBarView
+              Expanded(
+                child: isLoading
+                    ? Center(child: CircularProgressIndicator(color: AppStyle.primary))
+                    : TabBarView(
+                        controller: _tabController,
+                        physics: const BouncingScrollPhysics(),
+                        children: [
+                          _buildTasksList(),
+                          _buildHabitsList(),
+                          AchievementsView(tasks: tasks, habits: habits),
+                        ],
+                      ),
+              ),
+            ],
           ),
         ),
-        body: isLoading
-            ? Center(child: CircularProgressIndicator(color: primaryColor))
-            : PageView(
-                controller: _pageController,
-                onPageChanged: (i) {
-                  setState(() => currentPage = i);
-                  _tabController.animateTo(i);
-                },
-                children: [_tasksPage(), _habitsPage(), _chartPage()],
-              ),
-        floatingActionButton: currentPage == 1 ? _addHabitButton() : null,
+        floatingActionButton: AnimatedBuilder(
+          animation: _tabController.animation!,
+          builder: (ctx, child) {
+            // Only show FAB on Habits tab (index 1)
+            // TabController animation value is double, e.g. 0.0 -> 1.0
+            // We want to show when near 1.0. 
+            // Better to rely on index if using onTap, but swiping is dynamic.
+            // Let's just use a simple Visibility based on index if we assume onTap mostly
+            return _tabController.index == 1 ? _addHabitButton() : const SizedBox();
+          },
+        ),
       ),
     );
   }
 
-  Widget _addHabitButton() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 80.0, left: 10),
-      child: GestureDetector(
-        onTapDown: (_) => _btnController.forward(),
-        onTapUp: (_) {
-          _btnController.reverse();
-          _openAddHabitPage();
-        },
-        onTapCancel: () => _btnController.reverse(),
-        child: ScaleTransition(
-          scale: Tween<double>(begin: 1.0, end: 0.9).animate(_btnController),
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: primaryColor,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: primaryColor.withOpacity(0.4),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+  Widget _buildHabitsList() {
+    if (habits.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.auto_awesome_outlined, size: 60, color: Colors.grey.withOpacity(0.5)),
+            const SizedBox(height: 16),
+            Text(
+              "لا توجد عادات بعد",
+              style: GoogleFonts.cairo(color: Colors.grey, fontSize: 16),
             ),
-            child: const Icon(Icons.add, color: Colors.white),
+            const SizedBox(height: 80), // offset for fab
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+      physics: const BouncingScrollPhysics(),
+      itemCount: habits.length,
+      itemBuilder: (context, index) {
+        final habit = habits[index];
+        return HabitCard(
+          habit: habit,
+          onIncrement: () => _incrementHabitCount(habit),
+        );
+      },
+    );
+  }
+
+  Widget _buildTasksList() {
+    // Reusing the weekly logic but with TaskTile
+    List<Widget> weekWidgets = [];
+
+    // Week logic - simplified to just show relevant info cleanly
+    for (int i = 1; i <= 8; i++) {
+        DateTime weekStart = startDate.add(Duration(days: (i - 1) * 7));
+        DateTime weekEnd = weekStart.add(const Duration(days: 7));
+        bool isAvailable = DateTime.now().isAfter(weekStart);
+        // bool isExpired = DateTime.now().isAfter(weekEnd);
+
+        // Filter tasks? The previous logic just dumped ALL tasks into every week which was weird,
+        // or wait, `tasks.map` was done inside. If tasks aren't date-filtered, then they duplicate?
+        // Looking at previous code...
+        // `...tasks.map` was inside the loop. YES, it duplicated 8 times!
+        // That seems like a bug in the previous code or a placeholder.
+        // I will fix this to just show ONE list of tasks for "Current Week" or just "All Tasks".
+        // The user asked for an overhaul, so fixing logic is valid.
+        // I'll assume they want a simple list of tasks for now.
+    }
+
+    // Since the previous code duplicated tasks for 8 weeks (likely a template),
+    // I will replace it with a proper single list of tasks.
+    if (tasks.isEmpty) {
+        return Center(
+          child: Text("لا توجد مهام حالياً", style: GoogleFonts.cairo(color: Colors.grey)),
+        );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Text(
+          "مهامك الحالية",
+          style: GoogleFonts.cairo(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppStyle.primary,
           ),
+        ),
+        const SizedBox(height: 15),
+        ...tasks.map((t) => TaskTile(task: t, onToggle: () => _toggleTask(t, false))),
+      ],
+    );
+  }
+
+  Widget _addHabitButton() {
+    return GestureDetector(
+      onTapDown: (_) => _btnController.forward(),
+      onTapUp: (_) {
+        _btnController.reverse();
+        _openAddHabitPage();
+      },
+      onTapCancel: () => _btnController.reverse(),
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 1.0, end: 0.9).animate(_btnController),
+        child: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: AppStyle.primary,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppStyle.primary.withOpacity(0.4),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.add, color: Colors.white),
         ),
       ),
     );

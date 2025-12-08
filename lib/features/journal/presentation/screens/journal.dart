@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/data/services/auth_service.dart';
 import 'dart:ui' as ui;
+import 'package:test1/features/home/presentation/screens/home.dart';
+import 'package:test1/core/theme/app_style.dart';
 
 class Journal extends StatefulWidget {
   final VoidCallback? onJournalAdded;
@@ -69,7 +71,7 @@ class _JournalState extends State<Journal> with SingleTickerProviderStateMixin {
     showModalBottomSheet(
       context: context, 
       isScrollControlled: true, 
-      backgroundColor: Colors.white, 
+      backgroundColor: AppStyle.cardBg(context), 
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))), 
       builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 20, top: 25, left: 20, right: 20),
@@ -156,7 +158,7 @@ class _JournalState extends State<Journal> with SingleTickerProviderStateMixin {
           decoration: InputDecoration(
             hintText: "اكتب ما بخاطرك...", 
             filled: true, 
-            fillColor: Colors.grey[50], 
+            fillColor: AppStyle.isDark(context) ? Colors.grey[800] : Colors.grey[50], 
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
             contentPadding: const EdgeInsets.all(15),
           )
@@ -197,7 +199,7 @@ class _JournalState extends State<Journal> with SingleTickerProviderStateMixin {
     showModalBottomSheet(
       context: context, 
       isScrollControlled: true, 
-      backgroundColor: Colors.white, 
+      backgroundColor: AppStyle.cardBg(context), 
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))), 
       builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 20, top: 25, left: 20, right: 20),
@@ -258,7 +260,7 @@ class _JournalState extends State<Journal> with SingleTickerProviderStateMixin {
         
         const SizedBox(height: 20),
         
-        TextField(controller: txtCtrl, textAlign: TextAlign.right, maxLines: 4, decoration: InputDecoration(hintText: "اكتب ما بخاطرك...", filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none), contentPadding: const EdgeInsets.all(15))),
+        TextField(controller: txtCtrl, textAlign: TextAlign.right, maxLines: 4, decoration: InputDecoration(hintText: "اكتب ما بخاطرك...", filled: true, fillColor: AppStyle.isDark(context) ? Colors.grey[800] : Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none), contentPadding: const EdgeInsets.all(15))),
         const SizedBox(height: 25),
         
         ElevatedButton(
@@ -284,7 +286,7 @@ class _JournalState extends State<Journal> with SingleTickerProviderStateMixin {
     return Directionality(
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F9FA),
+        backgroundColor: AppStyle.bgTop(context),
         appBar: AppBar(title: const Text('يومياتي', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: primaryColor, centerTitle: true, elevation: 0),
         floatingActionButton: Padding(
           padding: const EdgeInsets.only(bottom: 80.0, left: 10),
@@ -304,32 +306,74 @@ class _JournalState extends State<Journal> with SingleTickerProviderStateMixin {
                 final j = journals[i];
                 return Container(
                   margin: const EdgeInsets.only(bottom: 15),
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: primaryColor.withOpacity(0.1), shape: BoxShape.circle),
-                        child: Text(j['mode'], style: const TextStyle(fontSize: 28))),
-                    title: Text(j['mode_name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const SizedBox(height: 6),
-                      if(j['mode_description'] != null) Text(j['mode_description'], style: const TextStyle(color: Colors.black87, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 8),
-                      Text(DateFormat('yyyy/MM/dd - hh:mm a', 'ar').format(DateTime.parse(j['mode_date'])), style: TextStyle(fontSize: 12, color: Colors.grey[400])),
-                    ]),
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (val) {
-                        if (val == 'edit') _editJournal(j);
-                        if (val == 'delete') _deleteJournal(j);
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, color: Colors.blue, size: 20), SizedBox(width: 8), Text('تعديل')])),
-                        const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 20), SizedBox(width: 8), Text('حذف', style: TextStyle(color: Colors.red))])),
-                      ],
-                      icon: const Icon(Icons.more_vert, color: Colors.grey),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(
+                    color: AppStyle.cardBg(context),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: AppStyle.cardShadow(context),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [AppStyle.primary, AppStyle.primary.withOpacity(0.5)],
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(color: AppStyle.primary.withOpacity(0.1), shape: BoxShape.circle),
+                                    child: Text(j['mode'], style: const TextStyle(fontSize: 30)),
+                                  ),
+                                  const SizedBox(width: 15),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(j['mode_name'] ?? '', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppStyle.textMain(context))),
+                                        const SizedBox(height: 6),
+                                        if(j['mode_description'] != null) Text(j['mode_description'], style: TextStyle(color: AppStyle.textMain(context).withOpacity(0.7), height: 1.5, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.access_time, size: 12, color: AppStyle.textSmall(context)),
+                                            const SizedBox(width: 4),
+                                            Text(DateFormat('yyyy/MM/dd - hh:mm a', 'ar').format(DateTime.parse(j['mode_date'])), style: TextStyle(fontSize: 11, color: AppStyle.textSmall(context))),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuButton<String>(
+                                    onSelected: (val) {
+                                      if (val == 'edit') _editJournal(j);
+                                      if (val == 'delete') _deleteJournal(j);
+                                    },
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, color: Colors.blue, size: 20), SizedBox(width: 8), Text('تعديل')])),
+                                      const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 20), SizedBox(width: 8), Text('حذف', style: TextStyle(color: Colors.red))])),
+                                    ],
+                                    icon: Icon(Icons.more_horiz, color: AppStyle.textSmall(context)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
