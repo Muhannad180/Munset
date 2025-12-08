@@ -21,7 +21,10 @@ class _MainNavigationState extends State<MainNavigation> {
   void initState() {
     super.initState();
     _pages = [
-      HomePage(refreshNotifier: _refreshHome),
+      HomePage(
+        refreshNotifier: _refreshHome,
+        onNavigateTo: (index) => _navigateToPage(index),
+      ),
       Journal(onJournalAdded: () {
         _refreshHome.value = !_refreshHome.value;
       }),
@@ -32,6 +35,12 @@ class _MainNavigationState extends State<MainNavigation> {
       }),
       Profile(),
     ];
+  }
+
+  void _navigateToPage(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
   }
 
   @override
