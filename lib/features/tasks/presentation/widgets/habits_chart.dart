@@ -32,7 +32,6 @@ class _HabitsChartState extends State<HabitsChart> {
       final double progress = (goal > 0)
           ? (current / goal).clamp(0.0, 1.0)
           : 0.0;
-
       // Parse Color
       Color color = AppStyle.primary;
       if (h['color'] != null && h['color'] is int) {
@@ -54,8 +53,9 @@ class _HabitsChartState extends State<HabitsChart> {
       IconData icon = Icons.star;
       if (h['icon_name'] != null) {
         int? codePoint = int.tryParse(h['icon_name'].toString());
-        if (codePoint != null)
+        if (codePoint != null) {
           icon = IconData(codePoint, fontFamily: 'MaterialIcons');
+        }
       }
 
       return _HabitProgress(
@@ -162,7 +162,7 @@ class _HabitsChartState extends State<HabitsChart> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
-
+                    const SizedBox(height: 2),
                     // Done Section
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -220,6 +220,7 @@ class _HabitsChartState extends State<HabitsChart> {
         ),
 
         const SizedBox(height: 30), // Increased to 30 as requested
+        const SizedBox(height: 30), // Increased to 30 as requested
         // 3. Mini Cards Row - Interactive
         Container(
           height: 130, // Increased height for labels
@@ -232,7 +233,6 @@ class _HabitsChartState extends State<HabitsChart> {
             itemBuilder: (context, index) {
               final item = habitProgresses[index];
               final isSelected = index == _selectedIndex;
-
               return GestureDetector(
                 onTap: () {
                   setState(() {
@@ -329,7 +329,6 @@ class _SegmentedRingPainter extends CustomPainter {
   final List<_HabitProgress> segments;
   final Color trackColor;
   final int selectedIndex;
-
   _SegmentedRingPainter({
     required this.segments,
     required this.trackColor,
@@ -342,7 +341,6 @@ class _SegmentedRingPainter extends CustomPainter {
 
     final center = Offset(size.width / 2, size.height / 2);
     final radius = min(size.width, size.height) / 2;
-
     final double strokeWidth = 18.0;
 
     final Paint trackPaint = Paint()
@@ -364,14 +362,12 @@ class _SegmentedRingPainter extends CustomPainter {
     final double gap = (count > 1) ? 0.15 : 0; // Radian gap
     final double totalAvailableAngle = (2 * pi);
     final double segmentArc = (totalAvailableAngle / count);
-
     // Start from top
     double startAngle = -pi / 2;
 
     for (int i = 0; i < count; i++) {
       final segment = segments[i];
       final bool isSelected = (i == selectedIndex);
-
       // The visual space for this segment
       final double availableSweep = segmentArc - gap;
 
