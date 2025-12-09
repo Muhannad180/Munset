@@ -7,11 +7,13 @@ import 'package:test1/features/tasks/presentation/screens/add_habit_screen.dart'
 import 'package:test1/features/tasks/presentation/widgets/achievements_view.dart';
 import 'package:test1/features/tasks/presentation/widgets/habit_card.dart';
 import 'package:test1/features/tasks/presentation/widgets/task_tile.dart';
+import 'package:test1/features/tasks/presentation/widgets/habits_chart.dart';
 import 'dart:ui' as ui;
 
 class TasksScreen extends StatefulWidget {
   final VoidCallback? onDataUpdated;
-  const TasksScreen({super.key, this.onDataUpdated});
+  final ValueNotifier<bool>? refreshNotifier; // Listen for refresh from other screens
+  const TasksScreen({super.key, this.onDataUpdated, this.refreshNotifier});
 
   @override
   State<TasksScreen> createState() => _TasksScreenState();
@@ -42,7 +44,17 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
         setState(() {}); // Rebuild to update background
       }
     });
+    // Listen for refresh requests from other screens
+    widget.refreshNotifier?.addListener(_loadAllData);
     _loadAllData();
+  }
+
+  @override
+  void dispose() {
+    widget.refreshNotifier?.removeListener(_loadAllData);
+    _btnController.dispose();
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAllData() async {
@@ -67,7 +79,21 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
 
       if (mounted) {
         setState(() {
-          habits = List<Map<String, dynamic>>.from(habitsRes);
+          habits = List<Map<String, dynamic>>.from(habitsRes).map((h) {
+             // Process History for Last 7 Days
+             List<DateTime> historyDates = [];
+             if (h['history'] != null && h['history'] is List) {
+                historyDates = (h['history'] as List).map((e) => DateTime.tryParse(e.toString())).whereType<DateTime>().toList();
+             }
+             final now = DateTime.now();
+             final sevenDaysAgo = now.subtract(const Duration(days: 7));
+             final int last7DaysCount = historyDates.where((d) => d.isAfter(sevenDaysAgo)).length;
+             
+             return {
+               ...h,
+               'weekly_current': historyDates.isNotEmpty ? last7DaysCount : (h['completion_count'] ?? 0),
+             };
+          }).toList();
           tasks = List<Map<String, dynamic>>.from(tasksRes);
           isLoading = false;
         });
@@ -87,18 +113,43 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
       setState(() {
         int index = habits.indexWhere((h) => h['id'] == habitId);
         if (index != -1) {
-          habits[index]['completion_count'] = newCount;
+          // Update History locally
+          List<String> history = List<String>.from(habits[index]['history'] ?? []);
+          history.add(DateTime.now().toUtc().toIso8601String());
+          
+          final now = DateTime.now();
+          final sevenDaysAgo = now.subtract(const Duration(days: 7));
+          final int realWeeklyCount = history.where((ts) {
+              final dt = DateTime.tryParse(ts);
+              return dt != null && dt.isAfter(sevenDaysAgo);
+          }).length;
+        
+          habits[index] = {
+             ...habits[index], 
+             'completion_count': newCount,
+             'last_done_at': DateTime.now().toIso8601String(),
+             'history': history,
+             'weekly_current': realWeeklyCount,
+          };
         }
       });
 
-      await supabase
-          .from('habits')
-          .update({'completion_count': newCount})
-          .eq('id', habitId);
+      final dbHabit = habits.firstWhere((h) => h['id'] == habitId);
+      
+      await supabase.from('habits').update({
+        'completion_count': newCount,
+        'last_done_at': DateTime.now().toUtc().toIso8601String(),
+        'history': dbHabit['history'],
+      }).eq('id', habitId);
 
       widget.onDataUpdated?.call();
     } catch (e) {
       debugPrint("Error incrementing habit: $e");
+      String msg = "خطأ في تحديث العادة";
+      if (e.toString().contains("column") && e.toString().contains("history")) {
+         msg = "Missing 'history' column in DB. Please add it.";
+      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       _loadAllData();
     }
   }
@@ -154,37 +205,18 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
           top: false,
           child: Column(
             children: [
-              SizedBox(
-                height: 150,
-                child: Stack(
-                  alignment: Alignment.topCenter,
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                alignment: Alignment.centerRight,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      height: 120,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                          colors: AppStyle.isDark(context) 
-                            ? [const Color(0xFF1F2E2C), AppStyle.bgTop(context)] 
-                            : [AppStyle.primary, AppStyle.primary.withOpacity(0.6)],
-                        ),
-                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
-                      ),
-                    ),
-                    Positioned(
-                      top: 60,
-                      child: Column(
-                        children: [
-                          Text("الأنشطة", style: GoogleFonts.cairo(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                          Text("تابع مهامك وابنِ عاداتك", style: GoogleFonts.cairo(color: Colors.white70, fontSize: 12)),
-                        ],
-                      ),
-                    ),
+                    Text("الأنشطة", style: GoogleFonts.cairo(fontSize: 28, fontWeight: FontWeight.bold, color: AppStyle.textMain(context))),
+                    Text("تابع تقدمك اليومي", style: GoogleFonts.cairo(fontSize: 16, color: AppStyle.textSmall(context))),
                   ],
                 ),
               ),
-              const SizedBox(height: 10),
 
               // Custom Tab Bar
               Container(

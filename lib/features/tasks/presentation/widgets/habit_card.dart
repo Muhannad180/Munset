@@ -117,8 +117,8 @@ class _HabitCardState extends State<HabitCard> {
     
     // Parse new fields with fallbacks
     final completionCount = habit['completion_count'] ?? 0;
-    final int goalTarget = (habit['goal_target'] is int) ? habit['goal_target'] : 1;
-    final String goalUnit = (habit['goal_unit'] ?? 'مرات').toString();
+    final int goalTarget = (habit['Goal'] is int) ? habit['Goal'] : 7; // Use 'Goal' column
+    final String goalUnit = (habit['frequency'] ?? 'يومي').toString();
     final String priority = (habit['priority'] ?? 'متوسط').toString();
     
     // Parse Color

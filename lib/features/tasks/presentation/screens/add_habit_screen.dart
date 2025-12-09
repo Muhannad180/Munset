@@ -17,11 +17,8 @@ class _AddHabitPageState extends State<AddHabitPage> {
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _weeklyTargetController = TextEditingController();
 
-  String selectedPriority = "متوسط"; // low, medium, high
   String selectedFrequency = "يومي"; // daily, weekly, monthly
   int goalTarget = 7; 
-  String goalUnit = "week";
-  int selectedColor = 0xFF4DB6AC; 
   IconData selectedIcon = Icons.star;
   String? selectedCommonHabit;
 
@@ -46,11 +43,6 @@ class _AddHabitPageState extends State<AddHabitPage> {
     Icons.nightlight_round, Icons.star, Icons.favorite,
   ];
 
-  final List<Color> colorOptions = [
-    const Color(0xFF4DB6AC), const Color(0xFFEF5350), const Color(0xFFFFA726),
-    const Color(0xFF42A5F5), const Color(0xFFAB47BC), const Color(0xFF8D6E63),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -59,10 +51,8 @@ class _AddHabitPageState extends State<AddHabitPage> {
       _titleController.text = h['title'] ?? '';
       _descController.text = h['description'] ?? '';
       
-      selectedPriority = h['priority'] ?? "متوسط";
       selectedFrequency = h['frequency'] ?? "يومي";
-      goalTarget = h['goal_target'] ?? 7;
-      if (h['color'] != null) selectedColor = h['color'];
+      goalTarget = h['Goal'] ?? 7; // Load from 'Goal' column
       
       // Icon Parsing
       final iconVal = h['icon_name'];
@@ -159,8 +149,6 @@ class _AddHabitPageState extends State<AddHabitPage> {
             const SizedBox(height: 25),
 
 
-
-
             const SizedBox(height: 25),
             _buildSectionLabel("أيقونة"),
             const SizedBox(height: 10),
@@ -185,9 +173,6 @@ class _AddHabitPageState extends State<AddHabitPage> {
       ),
     );
   }
-
-  // ... (Other widgets like buildHabitChips, buildTitleField etc. can be copied or kept if using replacing strategy)
-  // I will assume I am replacing the FULL FILE CONTENT so I need to provide full implementations.
   
   Widget buildHabitChips() {
     return SizedBox(
@@ -206,6 +191,14 @@ class _AddHabitPageState extends State<AddHabitPage> {
                 selectedCommonHabit = habit;
                 _titleController.text = habit;
                 _descController.text = habitDescriptions[habit] ?? "";
+                
+                 // Auto-select icon
+                if (habit == "قراءة") selectedIcon = Icons.book;
+                else if (habit == "رياضة") selectedIcon = Icons.fitness_center;
+                else if (habit == "شرب الماء") selectedIcon = Icons.local_drink;
+                else if (habit == "تأمل") selectedIcon = Icons.self_improvement;
+                else if (habit == "نوم مبكر") selectedIcon = Icons.bed;
+                else if (habit == "فطور صحي") selectedIcon = Icons.restaurant;
               });
             },
             child: AnimatedContainer(
@@ -328,10 +321,6 @@ class _AddHabitPageState extends State<AddHabitPage> {
       ),
     );
   }
-
-
-
-
 
   Widget buildIconsGrid() {
     return Container(
@@ -487,9 +476,14 @@ class _AddHabitPageState extends State<AddHabitPage> {
     final user = supabase.auth.currentUser;
     if (user == null) return;
 
-    // Final logic for goal
-    if (selectedFrequency == 'يومي') goalTarget = 7;
-    else if (selectedFrequency == 'شهري') goalTarget = 1;
+    // Calculate goal based on frequency selection
+    if (selectedFrequency == 'يومي') {
+      goalTarget = 7; // 7 times per week (daily)
+    } else if (selectedFrequency == 'أسبوعي') {
+      goalTarget = int.tryParse(_weeklyTargetController.text) ?? 3; // User-defined weekly target
+    } else if (selectedFrequency == 'شهري') {
+      goalTarget = 1; // Once per month
+    }
 
     try {
       final Map<String, dynamic> data = {
@@ -497,11 +491,8 @@ class _AddHabitPageState extends State<AddHabitPage> {
         "title": _titleController.text.trim(),
         "description": _descController.text.trim(),
         "icon_name": selectedIcon.codePoint.toString(),
-        // "color": selectedColor, // Column missing or not used
-        // "priority": selectedPriority, // Removed from UI
         "frequency": selectedFrequency,
-        // "goal_target": goalTarget, // Column missing in DB
-        // "updated_at": DateTime.now().toIso8601String(), // Column missing in DB
+        "Goal": goalTarget, // Save goal to database
       };
 
       if (widget.habit != null) {

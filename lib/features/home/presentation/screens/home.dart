@@ -22,8 +22,9 @@ class HomePage extends StatefulWidget {
   final VoidCallback? onReload;
   final ValueNotifier<bool>? refreshNotifier;
   final Function(int)? onNavigateTo; // Added for page switching
+  final VoidCallback? onHabitUpdated; // Callback when habits are changed
 
-  const HomePage({super.key, this.onReload, this.refreshNotifier, this.onNavigateTo});
+  const HomePage({super.key, this.onReload, this.refreshNotifier, this.onNavigateTo, this.onHabitUpdated});
 
   @override
   HomePageState createState() => HomePageState();
@@ -174,23 +175,41 @@ class HomePageState extends State<HomePage> {
       final habits = List<Map<String, dynamic>>.from(habitsRes).map((h) {
           final id = (h['id'] ?? h['habit_id']).toString();
           
-          // Daily Reset Logic
-          // Check last_performed_at or updated_at. If not today, status is false.
-          // Note: If DB schema doesn't have last_performed_at, we fall back to updated_at + is_completed check
-          // But implementing strictly as requested: "reset at midnight".
-          
-          String? lastDateStr = h['last_performed_at'] ?? h['updated_at']; 
-          bool isCompletedToday = false;
-          
-          if (lastDateStr != null) {
-             final lastDate = DateTime.parse(lastDateStr).toLocal();
-             isCompletedToday = (lastDate.year == now.year && lastDate.month == now.month && lastDate.day == now.day) 
-                                && (h['is_completed'] == true);
-          }
-          
           // Safety: Default goal to 7 (daily) if 0 or null
-          int goal = h['goal_target'] ?? 0;
+          int goal = h['Goal'] ?? 0;
           if (goal <= 0) goal = 7;
+          
+          // History Logic for "Last 7 Days"
+          // We expect a 'history' column (JSONB array of ISO strings)
+          // If missing, we fallback to completion_count
+          List<DateTime> historyDates = [];
+          if (h['history'] != null && h['history'] is List) {
+             historyDates = (h['history'] as List).map((e) => DateTime.tryParse(e.toString())).whereType<DateTime>().toList();
+          }
+
+          // Calculate "Last 7 Days" count
+          // Calculate "Last 7 Days" count
+          final sevenDaysAgo = now.subtract(const Duration(days: 7));
+          final int last7DaysCount = historyDates.where((d) => d.isAfter(sevenDaysAgo)).length;
+          
+          final int currentCount = (historyDates.isNotEmpty) 
+              ? last7DaysCount 
+              : (h['completion_count'] ?? 0); // Fallback
+
+          // Fix: Define isDoneToday
+          bool isDoneToday = false;
+          final today = DateTime(now.year, now.month, now.day);
+          if (historyDates.isNotEmpty) {
+             isDoneToday = historyDates.any((d) {
+                final local = d.toLocal();
+                return local.year == today.year && local.month == today.month && local.day == today.day;
+             });
+          } else {
+             if (h['last_done_at'] != null) {
+                 final last = DateTime.tryParse(h['last_done_at'].toString())?.toLocal();
+                 isDoneToday = (last != null && last.year == today.year && last.month == today.month && last.day == today.day);
+             }
+          }
 
           return {
              ...h,
@@ -198,10 +217,10 @@ class HomePageState extends State<HomePage> {
              'original_id': id,
              'type': 'habit',
              'title': h['title'] ?? h['habit_name'] ?? 'Habit',
-             'is_completed': isCompletedToday, // Display state
+             'is_completed': isDoneToday, // Show as done if completed TODAY
              'weekly_goal': goal, 
-             'weekly_current': h['completion_count'] ?? 0,
-             'raw_is_completed': h['is_completed'] // Internal state
+             'weekly_current': currentCount,
+             'history': historyDates.map((e) => e.toIso8601String()).toList(),
           };
       }).toList();
 
@@ -225,68 +244,77 @@ class HomePageState extends State<HomePage> {
     final originalId = parts.sublist(1).join('_');
 
     if (type == 'habit') {
-        // Daily Habit Logic
-        // 1. Toggle UI immediately
-        // 2. Update DB: 
-        //    - If marking DONE: is_completed=true, last_performed_at=NOW, increment completion_count
-        //    - If marking NOT DONE: is_completed=false, decrement completion_count (if >0)
-        
         // Find local habit to update UI
         final index = userTasks.indexWhere((t) => t['id'] == compoundId);
         if (index == -1) return;
         
         final oldHabit = userTasks[index];
         final newStatus = !currentStatus;
-        int newCount = oldHabit['weekly_current'];
+        int newCount = oldHabit['weekly_current'] ?? 0;
+        
+        // Manage History
+        List<String> history = List<String>.from(oldHabit['history'] ?? []);
+        final now = DateTime.now();
         
         if (newStatus) {
-            newCount++;
-        } else if (newCount > 0) {
-            newCount--;
+            newCount++; // Increment for optimisic UI (fallback)
+            history.add(now.toUtc().toIso8601String());
+        } else {
+            if (newCount > 0) newCount--;
+            // Remove the entry for today if exists (Undo)
+            final today = DateTime(now.year, now.month, now.day);
+            history.removeWhere((ts) {
+               final dt = DateTime.tryParse(ts)?.toLocal();
+               if (dt == null) return false;
+               return dt.year == today.year && dt.month == today.month && dt.day == today.day;
+            });
         }
+
+        // Calculate new "Last 7 Days" count for UI
+        final sevenDaysAgo = now.subtract(const Duration(days: 7));
+        final realWeeklyCount = history.where((ts) {
+            final dt = DateTime.tryParse(ts);
+            return dt != null && dt.isAfter(sevenDaysAgo);
+        }).length;
+        
+        final displayCount = (oldHabit['history'] != null) ? realWeeklyCount : newCount;
 
         setState(() {
-           userTasks[index] = {
-             ...oldHabit, 
-             'is_completed': newStatus,
-             'weekly_current': newCount
-           };
+          userTasks[index] = {
+            ...oldHabit,
+            'is_completed': newStatus,
+            'weekly_current': displayCount,
+            'last_done_at': newStatus ? DateTime.now().toIso8601String() : oldHabit['last_done_at'],
+            'history': history,
+            'completion_count': (oldHabit['completion_count'] ?? 0) + (newStatus ? 1 : -1),
+          };
         });
-
-        // Background DB Update
-        try {
-           final updateData = {
-               'is_completed': newStatus,
-               'last_performed_at': newStatus ? DateTime.now().toIso8601String() : null, // or keep date? keeping date is safer but null is clear "not done now"
-               'completion_count': newCount,
-               // If schema allows `last_performed_at`, great. If not, this might throw or ignore. 
-               // Assuming user wants strict logic, we try to update `updated_at` implicitly by row update.
-           };
-           
-           // If `last_performed_at` doesn't exist in schema, we might fallback to just `updated_at`.
-           await supabase.from('habits').update(updateData).eq('id', originalId).eq('user_id', userId);
-        } catch (e) {
-           debugPrint("Habit Toggle Err: $e");
-           // Fallback for missing column?
-           try {
-             await supabase.from('habits').update({
-               'is_completed': newStatus, 
-               'completion_count': newCount
-             }).eq('id', originalId).eq('user_id', userId);
-           } catch (e2) { debugPrint("Fallback Err: $e2"); }
-        }
+       
+       try {
+          final Map<String, dynamic> updateData = {
+            'completion_count': (oldHabit['completion_count'] ?? 0) + (newStatus ? 1 : -1),
+            'history': history,
+          };
+          if (newStatus) {
+            updateData['last_done_at'] = DateTime.now().toUtc().toIso8601String();
+          }
+          await supabase.from('habits').update(updateData).eq('id', originalId).eq('user_id', userId);
+          widget.onHabitUpdated?.call(); 
+       } catch (e) {
+          debugPrint("Habit Toggle Err: $e");
+          if (mounted) setState(() => userTasks[index] = oldHabit);
+          String msg = "خطأ في تحديث العادة";
+          if (e.toString().contains("column") && e.toString().contains("history")) {
+             msg = "Missing 'history' column in DB. Please add it.";
+          }
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+       }
 
     } else {
         // Session Task Logic
-        // Toggle and Re-calc Task Progress
-        // Note: we need to find this task in a local list? 
-        // We aren't storing session tasks globally in state neatly, we just calc progress.
-        // To support optimistic UI for session tasks, we should reload or keep a list.
-        // For now, simpler to just await and reload.
-        
         try {
            await supabase.from('tasks').update({'is_completed': !currentStatus}).eq('id', originalId).eq('user_id', userId);
-           await _loadTasksProgress(); // Reload to update progress bar
+           await _loadTasksProgress(); 
         } catch (e) {
            debugPrint("Task Toggle Err: $e");
         }
@@ -303,6 +331,7 @@ class HomePageState extends State<HomePage> {
 
     if (result == true) {
       _loadTasksProgress();
+      widget.onHabitUpdated?.call(); // Notify tasks screen to refresh
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(habitToEdit == null ? "تمت إضافة العادة" : "تم تحديث العادة")),
       );

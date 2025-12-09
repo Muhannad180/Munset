@@ -15,6 +15,8 @@ class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
   // Notifier to trigger Home refresh
   final ValueNotifier<bool> _refreshHome = ValueNotifier(false);
+  // Notifier to trigger Tasks refresh
+  final ValueNotifier<bool> _refreshTasks = ValueNotifier(false);
 
   late final List<Widget> _pages;
 
@@ -25,15 +27,22 @@ class _MainNavigationState extends State<MainNavigation> {
       HomePage(
         refreshNotifier: _refreshHome,
         onNavigateTo: (index) => _navigateToPage(index),
+        onHabitUpdated: () {
+          // Trigger refresh in Tasks screen when habit is updated from home
+          _refreshTasks.value = !_refreshTasks.value;
+        },
       ),
       Journal(onJournalAdded: () {
         _refreshHome.value = !_refreshHome.value;
       }),
       Sessions(),
-      TasksScreen(onDataUpdated: () {
-        // Trigger refresh in Home
-        _refreshHome.value = !_refreshHome.value;
-      }),
+      TasksScreen(
+        refreshNotifier: _refreshTasks,
+        onDataUpdated: () {
+          // Trigger refresh in Home
+          _refreshHome.value = !_refreshHome.value;
+        },
+      ),
       Profile(),
     ];
   }
