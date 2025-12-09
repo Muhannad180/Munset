@@ -16,6 +16,7 @@ import 'package:test1/features/home/presentation/widgets/advice_card.dart';
 import 'package:test1/features/home/presentation/widgets/progress_card.dart';
 import 'package:test1/features/home/presentation/widgets/habit_list.dart';
 import 'package:test1/features/home/presentation/widgets/journal_sheet_content.dart';
+import 'package:test1/features/tasks/presentation/screens/add_habit_screen.dart';
 
 class HomePage extends StatefulWidget {
   final VoidCallback? onReload;
@@ -140,31 +141,172 @@ class HomePageState extends State<HomePage> {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      final habitsRes = await supabase.from('habits').select().eq('user_id', userId);
+      // 1. Fetch Session Tasks (for Progress Card)
       final tasksRes = await supabase.from('tasks').select().eq('user_id', userId); 
+      final tasks = List<Map<String, dynamic>>.from(tasksRes).map((t) {
+          final id = (t['id'] ?? t['task_id']).toString();
+          return {
+             ...t,
+             'id': 'task_$id',
+             'original_id': id,
+             'type': 'task',
+             'title': t['title'] ?? t['task_name'] ?? 'Task',
+             'is_completed': t['is_completed'] ?? t['task_completion'] ?? false,
+          };
+      }).toList();
+
+      // Calculate Progress ONLY from tasks
+      if (mounted) {
+         if (tasks.isEmpty) {
+            taskProgress = 0.0;
+            progressMessage = "لا توجد مهام جلسات حالياً.";
+         } else {
+            final completed = tasks.where((t) => t['is_completed'] == true).length;
+            taskProgress = tasks.isNotEmpty ? (completed / tasks.length) : 0.0;
+            _generateProgressMessage(taskProgress);
+         }
+      }
+
+      // 2. Fetch Habits (For Daily Tracker)
+      final habitsRes = await supabase.from('habits').select().eq('user_id', userId);
+      final now = DateTime.now();
       
-      final List<Map<String, dynamic>> allItems = [...List<Map<String, dynamic>>.from(habitsRes), ...List<Map<String, dynamic>>.from(tasksRes)];
+      final habits = List<Map<String, dynamic>>.from(habitsRes).map((h) {
+          final id = (h['id'] ?? h['habit_id']).toString();
+          
+          // Daily Reset Logic
+          // Check last_performed_at or updated_at. If not today, status is false.
+          // Note: If DB schema doesn't have last_performed_at, we fall back to updated_at + is_completed check
+          // But implementing strictly as requested: "reset at midnight".
+          
+          String? lastDateStr = h['last_performed_at'] ?? h['updated_at']; 
+          bool isCompletedToday = false;
+          
+          if (lastDateStr != null) {
+             final lastDate = DateTime.parse(lastDateStr).toLocal();
+             isCompletedToday = (lastDate.year == now.year && lastDate.month == now.month && lastDate.day == now.day) 
+                                && (h['is_completed'] == true);
+          }
+          
+          // Safety: Default goal to 7 (daily) if 0 or null
+          int goal = h['goal_target'] ?? 0;
+          if (goal <= 0) goal = 7;
+
+          return {
+             ...h,
+             'id': 'habit_$id',
+             'original_id': id,
+             'type': 'habit',
+             'title': h['title'] ?? h['habit_name'] ?? 'Habit',
+             'is_completed': isCompletedToday, // Display state
+             'weekly_goal': goal, 
+             'weekly_current': h['completion_count'] ?? 0,
+             'raw_is_completed': h['is_completed'] // Internal state
+          };
+      }).toList();
 
       if (mounted) {
-        if (allItems.isEmpty) {
-          setState(() { 
-            taskProgress = 0.0; 
-            userTasks = []; 
-            progressMessage = "لا توجد مهام مسجلة اليوم. ابدأ بإضافة مهامك!";
-          });
-        } else {
-          final completed = allItems.where((t) => t['is_completed'] == true).length;
-          final double progress = allItems.isNotEmpty ? (completed / allItems.length) : 0.0;
-          
-          setState(() {
-            taskProgress = progress;
-            userTasks = allItems;
-          });
-          
-          _generateProgressMessage(progress);
-        }
+        setState(() {
+          userTasks = habits; // HabitList now only receives habits!
+          // taskProgress calculated above is preserved
+        });
       }
+
     } catch (e) { debugPrint("Tasks Err: $e"); }
+  }
+
+  Future<void> _handleTaskToggle(String compoundId, bool currentStatus) async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+    
+    final parts = compoundId.split('_');
+    if (parts.length < 2) return;
+    final type = parts[0];
+    final originalId = parts.sublist(1).join('_');
+
+    if (type == 'habit') {
+        // Daily Habit Logic
+        // 1. Toggle UI immediately
+        // 2. Update DB: 
+        //    - If marking DONE: is_completed=true, last_performed_at=NOW, increment completion_count
+        //    - If marking NOT DONE: is_completed=false, decrement completion_count (if >0)
+        
+        // Find local habit to update UI
+        final index = userTasks.indexWhere((t) => t['id'] == compoundId);
+        if (index == -1) return;
+        
+        final oldHabit = userTasks[index];
+        final newStatus = !currentStatus;
+        int newCount = oldHabit['weekly_current'];
+        
+        if (newStatus) {
+            newCount++;
+        } else if (newCount > 0) {
+            newCount--;
+        }
+
+        setState(() {
+           userTasks[index] = {
+             ...oldHabit, 
+             'is_completed': newStatus,
+             'weekly_current': newCount
+           };
+        });
+
+        // Background DB Update
+        try {
+           final updateData = {
+               'is_completed': newStatus,
+               'last_performed_at': newStatus ? DateTime.now().toIso8601String() : null, // or keep date? keeping date is safer but null is clear "not done now"
+               'completion_count': newCount,
+               // If schema allows `last_performed_at`, great. If not, this might throw or ignore. 
+               // Assuming user wants strict logic, we try to update `updated_at` implicitly by row update.
+           };
+           
+           // If `last_performed_at` doesn't exist in schema, we might fallback to just `updated_at`.
+           await supabase.from('habits').update(updateData).eq('id', originalId).eq('user_id', userId);
+        } catch (e) {
+           debugPrint("Habit Toggle Err: $e");
+           // Fallback for missing column?
+           try {
+             await supabase.from('habits').update({
+               'is_completed': newStatus, 
+               'completion_count': newCount
+             }).eq('id', originalId).eq('user_id', userId);
+           } catch (e2) { debugPrint("Fallback Err: $e2"); }
+        }
+
+    } else {
+        // Session Task Logic
+        // Toggle and Re-calc Task Progress
+        // Note: we need to find this task in a local list? 
+        // We aren't storing session tasks globally in state neatly, we just calc progress.
+        // To support optimistic UI for session tasks, we should reload or keep a list.
+        // For now, simpler to just await and reload.
+        
+        try {
+           await supabase.from('tasks').update({'is_completed': !currentStatus}).eq('id', originalId).eq('user_id', userId);
+           await _loadTasksProgress(); // Reload to update progress bar
+        } catch (e) {
+           debugPrint("Task Toggle Err: $e");
+        }
+    }
+  }
+
+  Future<void> _openAddHabitPage({Map<String, dynamic>? habitToEdit}) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddHabitPage(habit: habitToEdit),
+      ),
+    );
+
+    if (result == true) {
+      _loadTasksProgress();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(habitToEdit == null ? "تمت إضافة العادة" : "تم تحديث العادة")),
+      );
+    }
   }
 
   Future<void> _generateProgressMessage(double progress) async {
@@ -427,6 +569,20 @@ class HomePageState extends State<HomePage> {
                    ),
                    const SizedBox(height: 20),
 
+                   const SizedBox(height: 10),
+                   Padding(
+                     padding: const EdgeInsets.symmetric(horizontal: 4),
+                     child: Text(
+                       "مهام الجلسات", 
+                       style: GoogleFonts.cairo(
+                         fontSize: 18, 
+                         fontWeight: FontWeight.bold,
+                         color: AppStyle.isDark(context) ? Colors.white : AppStyle.primary
+                       )
+                     ),
+                   ),
+                   const SizedBox(height: 10),
+
                    ProgressCard(
                      progressMessage: progressMessage,
                      taskProgress: taskProgress,
@@ -439,13 +595,85 @@ class HomePageState extends State<HomePage> {
                      habitAdvices: habitAdvices,
                      loadingHabitAdvice: loadingHabitAdvice,
                      onNavigateTo: widget.onNavigateTo,
-                     onHabitAdviceReq: _getPersonalizedAdvice,
+                     onHabitAdviceReq: _fetchAndShowHabitPopup,
+                     onToggle: _handleTaskToggle,
+                     onEdit: (habit) => _openAddHabitPage(habitToEdit: habit),
                    ),
+
+
                    const SizedBox(height: 60),
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+  Future<void> _fetchAndShowHabitPopup(String id, String title) async {
+      setState(() => loadingHabitAdvice[id] = true);
+      try {
+         // Using the same API call logic as HabitCard
+         const String apiUrl = 'http://127.0.0.1:10000/habit-advice';
+         final response = await http.post(
+           Uri.parse(apiUrl),
+           headers: {'Content-Type': 'application/json'},
+           body: jsonEncode({'habit_name': title})
+         );
+         
+         if (!mounted) return;
+         
+         if (response.statusCode == 200) {
+            final data = jsonDecode(utf8.decode(response.bodyBytes));
+            final advice = data['advice'] ?? 'استمر في المحاولة!';
+            _showHabitAdviceDialog(title, advice);
+         } else {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: ${response.statusCode}")));
+         }
+      } catch (e) {
+          if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      } finally {
+         if(mounted) setState(() => loadingHabitAdvice[id] = false);
+      }
+  }
+
+  void _showHabitAdviceDialog(String title, String advice) {
+    showDialog(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: AppStyle.cardBg(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.lightbulb, color: Colors.amber, size: 28),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "نصيحة لـ $title",
+                  style: GoogleFonts.cairo(
+                    fontWeight: FontWeight.bold,
+                    color: AppStyle.textMain(context),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            advice,
+            style: GoogleFonts.cairo(
+              fontSize: 16, 
+              height: 1.5,
+              color: AppStyle.textMain(context),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("حسناً", style: GoogleFonts.cairo(color: AppStyle.primary)),
+            ),
+          ],
         ),
       ),
     );

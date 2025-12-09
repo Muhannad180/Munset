@@ -23,8 +23,8 @@ class ProgressCard extends StatelessWidget {
        decoration: BoxDecoration(
          gradient: LinearGradient(
            colors: AppStyle.isDark(context) 
-             ? [const Color(0xFF283593).withOpacity(0.6), const Color(0xFF424242)]
-             : [const Color(0xFFE8EAF6), const Color(0xFFC5CAE9)], 
+             ? [const Color(0xFF283593).withOpacity(0.8), const Color(0xFF424242)]
+             : [const Color(0xFF7986CB), const Color(0xFFC5CAE9)], 
            begin: Alignment.topLeft,
            end: Alignment.bottomRight
          ),

@@ -14,20 +14,51 @@ class Sessions extends StatelessWidget {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: AppStyle.bgTop(context),
-        appBar: AppBar(
-          title: const Text('الجلسات', style: TextStyle(fontWeight: FontWeight.bold)),
-          backgroundColor: primaryColor,
-          elevation: 0,
-          centerTitle: true,
-        ),
-        body: ListView(
-          padding: const EdgeInsets.all(20),
+
+        body: Column(
           children: [
-            _sessionCard(context, 'الجلسة 1', '20/4/2025', 'منتهية', Icons.check_circle, isDone: true),
-            const SizedBox(height: 15),
-            _sessionCard(context, 'جلسة جديدة', 'اليوم', 'ابدأ الآن', Icons.add_circle, isNew: true),
-            const SizedBox(height: 15),
-            _sessionCard(context, 'الجلسة 3', '4/5/2025', 'قادمة', Icons.lock, isLocked: true),
+             SizedBox(
+               height: 150,
+               child: Stack(
+                 alignment: Alignment.topCenter,
+                 children: [
+                   Container(
+                     height: 120,
+                     width: double.infinity,
+                     decoration: BoxDecoration(
+                       gradient: LinearGradient(
+                         begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                         colors: AppStyle.isDark(context) 
+                           ? [const Color(0xFF1F2E2C), AppStyle.bgTop(context)] 
+                           : [AppStyle.primary, AppStyle.primary.withOpacity(0.6)],
+                       ),
+                       borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+                     ),
+                   ),
+                   Positioned(
+                     top: 60,
+                     child: Column(
+                       children: [
+                         const Text("الجلسات", style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                         const Text("جلسات علاجية مخصصة لك", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                       ],
+                     ),
+                   ),
+                 ],
+               ),
+             ),
+             Expanded(
+               child: ListView(
+                 padding: const EdgeInsets.all(20),
+                 children: [
+                   _sessionCard(context, 'الجلسة 1', '20/4/2025', 'منتهية', Icons.check_circle, isDone: true),
+                   const SizedBox(height: 15),
+                   _sessionCard(context, 'جلسة جديدة', 'اليوم', 'ابدأ الآن', Icons.add_circle, isNew: true),
+                   const SizedBox(height: 15),
+                   _sessionCard(context, 'الجلسة 3', '4/5/2025', 'قادمة', Icons.lock, isLocked: true),
+                 ],
+               ),
+             ),
           ],
         ),
       ),

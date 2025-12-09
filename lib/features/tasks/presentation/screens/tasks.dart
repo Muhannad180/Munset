@@ -37,6 +37,11 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
       duration: const Duration(milliseconds: 100),
     );
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {}); // Rebuild to update background
+      }
+    });
     _loadAllData();
   }
 
@@ -125,10 +130,12 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
     }
   }
 
-  void _openAddHabitPage() async {
+  void _openAddHabitPage({Map<String, dynamic>? habitToEdit}) async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const AddHabitPage()),
+      MaterialPageRoute(
+        builder: (context) => AddHabitPage(habit: habitToEdit),
+      ),
     );
 
     if (result != null) {
@@ -144,22 +151,40 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
       child: Scaffold(
         backgroundColor: AppStyle.bgTop(context),
         body: SafeArea(
+          top: false,
           child: Column(
             children: [
-              const SizedBox(height: 20),
-              // Header
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  "الأنشطة",
-                  style: GoogleFonts.cairo(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppStyle.textMain(context),
-                  ),
+              SizedBox(
+                height: 150,
+                child: Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    Container(
+                      height: 120,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                          colors: AppStyle.isDark(context) 
+                            ? [const Color(0xFF1F2E2C), AppStyle.bgTop(context)] 
+                            : [AppStyle.primary, AppStyle.primary.withOpacity(0.6)],
+                        ),
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+                      ),
+                    ),
+                    Positioned(
+                      top: 60,
+                      child: Column(
+                        children: [
+                          Text("الأنشطة", style: GoogleFonts.cairo(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                          Text("تابع مهامك وابنِ عاداتك", style: GoogleFonts.cairo(color: Colors.white70, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
 
               // Custom Tab Bar
               Container(
@@ -219,49 +244,129 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
             ],
           ),
         ),
-        floatingActionButton: AnimatedBuilder(
-          animation: _tabController.animation!,
-          builder: (ctx, child) {
-            // Only show FAB on Habits tab (index 1)
-            // TabController animation value is double, e.g. 0.0 -> 1.0
-            // We want to show when near 1.0. 
-            // Better to rely on index if using onTap, but swiping is dynamic.
-            // Let's just use a simple Visibility based on index if we assume onTap mostly
-            return _tabController.index == 1 ? _addHabitButton() : const SizedBox();
-          },
-        ),
+
       ),
     );
   }
 
+  String _sortOption = 'default';
+
   Widget _buildHabitsList() {
-    if (habits.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.auto_awesome_outlined, size: 60, color: Colors.grey.withOpacity(0.5)),
-            const SizedBox(height: 16),
-            Text(
-              "لا توجد عادات بعد",
-              style: GoogleFonts.cairo(color: Colors.grey, fontSize: 16),
-            ),
-            const SizedBox(height: 80), // offset for fab
+    // 1. Sort the list
+    List<Map<String, dynamic>> sortedHabits = List.from(habits);
+    if (_sortOption == 'priority') {
+       // High -> Medium -> Low
+       final priorityMap = {'عالية': 3, 'متوسطة': 2, 'منخفضة': 1, 'متوسط': 2};
+       sortedHabits.sort((a, b) {
+          int pA = priorityMap[a['priority'] ?? 'متوسط'] ?? 1;
+          int pB = priorityMap[b['priority'] ?? 'متوسط'] ?? 1;
+          return pB.compareTo(pA); // Descending
+       });
+    } else if (_sortOption == 'alpha') {
+       sortedHabits.sort((a, b) => (a['title'] ?? '').toString().compareTo(b['title'] ?? ''));
+    }
+
+    return Column(
+      children: [
+         // Sort Bar
+         Padding(
+           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+           child: Row(
+             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+             children: [
+               Text("عاداتك اليومية", style: GoogleFonts.cairo(fontSize: 18, fontWeight: FontWeight.bold, color: AppStyle.textMain(context))),
+               Container(
+                 padding: const EdgeInsets.symmetric(horizontal: 12),
+                 decoration: BoxDecoration(
+                   color: AppStyle.cardBg(context),
+                   borderRadius: BorderRadius.circular(20),
+                   border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                 ),
+                 child: DropdownButtonHideUnderline(
+                   child: DropdownButton<String>(
+                     value: _sortOption,
+                     dropdownColor: AppStyle.cardBg(context),
+                     icon: Icon(Icons.sort, color: AppStyle.textSmall(context), size: 20),
+                     style: GoogleFonts.cairo(color: AppStyle.textMain(context), fontSize: 14),
+                     items: const [
+                       DropdownMenuItem(value: 'default', child: Text("الأحدث")),
+                       DropdownMenuItem(value: 'priority', child: Text("الأولوية")),
+                       DropdownMenuItem(value: 'alpha', child: Text("أبجدي")),
+                     ],
+                     onChanged: (val) {
+                       if(val != null) setState(() => _sortOption = val);
+                     },
+                   ),
+                 ),
+               )
+             ],
+           ),
+         ),
+         
+         // List
+         Expanded(
+           child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+              physics: const BouncingScrollPhysics(),
+              itemCount: sortedHabits.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) return _buildAddHabitCard();
+                final habit = sortedHabits[index - 1];
+                return GestureDetector(
+                   onLongPress: () => _openAddHabitPage(habitToEdit: habit),
+                   child: HabitCard(
+                     habit: habit,
+                     onIncrement: () => _incrementHabitCount(habit),
+                   ),
+                );
+              },
+           ),
+         ),
+      ],
+    );
+  }
+
+  Widget _buildAddHabitCard() {
+    return GestureDetector(
+      onTap: () {
+         // Animate button controller just for effect? 
+         _openAddHabitPage();
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        decoration: BoxDecoration(
+          color: AppStyle.isDark(context) ? Colors.white10 : Colors.white.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppStyle.primary.withOpacity(0.3), width: 1),
+          boxShadow: [
+             BoxShadow(
+               color: AppStyle.primary.withOpacity(0.05),
+               blurRadius: 10,
+               offset: const Offset(0, 4),
+             )
           ],
         ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-      physics: const BouncingScrollPhysics(),
-      itemCount: habits.length,
-      itemBuilder: (context, index) {
-        final habit = habits[index];
-        return HabitCard(
-          habit: habit,
-          onIncrement: () => _incrementHabitCount(habit),
-        );
-      },
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: AppStyle.primary.withOpacity(0.1), shape: BoxShape.circle),
+              child: const Icon(Icons.add, color: AppStyle.primary),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              "إضافة عادة جديدة",
+              style: GoogleFonts.cairo(
+                color: AppStyle.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -311,33 +416,5 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _addHabitButton() {
-    return GestureDetector(
-      onTapDown: (_) => _btnController.forward(),
-      onTapUp: (_) {
-        _btnController.reverse();
-        _openAddHabitPage();
-      },
-      onTapCancel: () => _btnController.reverse(),
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 1.0, end: 0.9).animate(_btnController),
-        child: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: AppStyle.primary,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppStyle.primary.withOpacity(0.4),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.add, color: Colors.white),
-        ),
-      ),
-    );
-  }
+
 }

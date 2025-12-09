@@ -18,8 +18,8 @@ class AdviceCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: AppStyle.isDark(context) 
-            ? [const Color(0xFFF9A825).withOpacity(0.5), const Color(0xFF424242)] 
-            : [const Color(0xFFFFF59D), Colors.white], 
+            ? [const Color(0xFFF9A825).withOpacity(0.8), const Color(0xFF424242)] 
+            : [const Color(0xFFFDD835), const Color(0xFFFFF59D)], 
           begin: Alignment.topLeft,
           end: Alignment.bottomRight
         ),

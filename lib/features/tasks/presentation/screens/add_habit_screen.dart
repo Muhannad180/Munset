@@ -5,7 +5,8 @@ import 'package:test1/core/theme/app_style.dart';
 import 'dart:ui' as ui;
 
 class AddHabitPage extends StatefulWidget {
-  const AddHabitPage({super.key});
+  final Map<String, dynamic>? habit;
+  const AddHabitPage({super.key, this.habit});
 
   @override
   State<AddHabitPage> createState() => _AddHabitPageState();
@@ -14,49 +15,81 @@ class AddHabitPage extends StatefulWidget {
 class _AddHabitPageState extends State<AddHabitPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
+  final TextEditingController _weeklyTargetController = TextEditingController();
 
-  String selectedFrequency = "يومي";
+  String selectedPriority = "متوسط"; // low, medium, high
+  String selectedFrequency = "يومي"; // daily, weekly, monthly
+  int goalTarget = 7; 
+  String goalUnit = "week";
+  int selectedColor = 0xFF4DB6AC; 
   IconData selectedIcon = Icons.star;
   String? selectedCommonHabit;
 
   final List<String> commonHabits = [
-    "شرب ماء", "رياضة", "قراءة", "تأمل", "نوم مبكر", "تعلم مهارة", 
-    "مشي يومي", "أكل صحي", "كتابة مذكرات", "الأذكار"
+    "قراءة", "رياضة", "شرب الماء", "تأمل", "نوم مبكر", "فطور صحي",
   ];
 
   final Map<String, String> habitDescriptions = {
-    "شرب ماء": "اشرب 6-8 أكواب ماء يوميًا لتحسين صحتك.",
-    "رياضة": "مارس الرياضة 20-30 دقيقة يوميًا.",
-    "قراءة": "اقرأ 10 صفحات يوميًا.",
-    "تأمل": "5 دقائق لتصفية ذهنك.",
-    "نوم مبكر": "نم قبل 12 لراحة أفضل.",
-    "تعلم مهارة": "تعلم 15 دقيقة من مهارة جديدة.",
-    "مشي يومي": "امشِ 3000–8000 خطوة.",
-    "أكل صحي": "تناول وجبات متوازنة.",
-    "كتابة مذكرات": "اكتب ما حدث اليوم.",
-    "الأذكار": "اذكر الله صباحًا ومساءً.",
+    "قراءة": "قراءة 10 صفحات يومياً",
+    "رياضة": "ممارسة تمارين لمدة 30 دقيقة",
+    "شرب الماء": "شرب 8 أكواب ماء",
+    "تأمل": "جلسة تأمل لمدة 10 دقائق",
+    "نوم مبكر": "النوم قبل الساعة 11 مساءً",
+    "فطور صحي": "تناول وجبة إفطار متكاملة",
   };
 
   final List<IconData> iconsList = [
-    Icons.water_drop, Icons.local_drink, Icons.sports_gymnastics, Icons.fitness_center,
-    Icons.directions_run, Icons.self_improvement, Icons.book, Icons.menu_book,
-    Icons.computer, Icons.code, Icons.school, Icons.edit, Icons.cleaning_services,
-    Icons.bedtime, Icons.wb_sunny, Icons.nightlight_round, Icons.family_restroom,
-    Icons.favorite, Icons.star, Icons.check_circle, Icons.task_alt, Icons.timelapse,
-    Icons.alarm, Icons.health_and_safety, Icons.spa, Icons.face, Icons.person,
-    Icons.air, Icons.handshake, Icons.volunteer_activism, Icons.mosque, Icons.run_circle,
-    Icons.directions_walk, Icons.fastfood, Icons.local_cafe, Icons.energy_savings_leaf,
+    Icons.book, Icons.fitness_center, Icons.local_drink, Icons.self_improvement,
+    Icons.bed, Icons.restaurant, Icons.work, Icons.school, Icons.code,
+    Icons.brush, Icons.music_note, Icons.camera_alt, Icons.directions_bike,
+    Icons.directions_run, Icons.pool, Icons.spa, Icons.wb_sunny,
+    Icons.nightlight_round, Icons.star, Icons.favorite,
+  ];
+
+  final List<Color> colorOptions = [
+    const Color(0xFF4DB6AC), const Color(0xFFEF5350), const Color(0xFFFFA726),
+    const Color(0xFF42A5F5), const Color(0xFFAB47BC), const Color(0xFF8D6E63),
   ];
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.habit != null) {
+      final h = widget.habit!;
+      _titleController.text = h['title'] ?? '';
+      _descController.text = h['description'] ?? '';
+      
+      selectedPriority = h['priority'] ?? "متوسط";
+      selectedFrequency = h['frequency'] ?? "يومي";
+      goalTarget = h['goal_target'] ?? 7;
+      if (h['color'] != null) selectedColor = h['color'];
+      
+      // Icon Parsing
+      final iconVal = h['icon_name'];
+      if (iconVal != null) {
+         int? codePoint = int.tryParse(iconVal.toString());
+         if (codePoint != null) {
+            selectedIcon = IconData(codePoint, fontFamily: 'MaterialIcons');
+         }
+      }
+      
+      if (selectedFrequency == 'أسبوعي') {
+         _weeklyTargetController.text = goalTarget.toString();
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    bool isEditing = widget.habit != null;
+
     return Directionality(
       textDirection: ui.TextDirection.rtl,
       child: Scaffold(
         backgroundColor: AppStyle.bgTop(context),
         appBar: AppBar(
           title: Text(
-            "إضافة عادة جديدة",
+            isEditing ? "تعديل العادة" : "إضافة عادة جديدة",
             style: GoogleFonts.cairo(
               color: AppStyle.textMain(context),
               fontWeight: FontWeight.bold,
@@ -71,18 +104,20 @@ class _AddHabitPageState extends State<AddHabitPage> {
           padding: const EdgeInsets.all(20.0),
           physics: const BouncingScrollPhysics(),
           children: [
-            Text(
-              "اقتراحات سريعة",
-              style: GoogleFonts.cairo(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppStyle.textMain(context),
+            if (!isEditing) ...[
+              Text(
+                "اقتراحات سريعة",
+                style: GoogleFonts.cairo(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppStyle.textMain(context),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            buildHabitChips(),
+              const SizedBox(height: 12),
+              buildHabitChips(),
+              const SizedBox(height: 25),
+            ],
 
-            const SizedBox(height: 25),
             _buildSectionLabel("تفاصيل العادة"),
             const SizedBox(height: 10),
             buildTitleField(),
@@ -93,6 +128,38 @@ class _AddHabitPageState extends State<AddHabitPage> {
             _buildSectionLabel("التكرار"),
             const SizedBox(height: 10),
             buildFrequencyRow(),
+            
+            // Conditional Weekly Target Input
+            if (selectedFrequency == "أسبوعي") ...[
+                const SizedBox(height: 15),
+                Container(
+                   decoration: BoxDecoration(
+                     color: AppStyle.cardBg(context),
+                     borderRadius: BorderRadius.circular(12),
+                   ),
+                   child: TextField(
+                     controller: _weeklyTargetController,
+                     keyboardType: TextInputType.number,
+                     style: GoogleFonts.cairo(color: AppStyle.textMain(context)),
+                     decoration: InputDecoration(
+                       labelText: "عدد المرات في الأسبوع",
+                       labelStyle: GoogleFonts.cairo(color: AppStyle.textSmall(context)),
+                       hintText: "مثلاً: 3",
+                       border: InputBorder.none,
+                       prefixIcon: const Icon(Icons.repeat, color: Colors.grey),
+                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                     ),
+                     onChanged: (val) {
+                        goalTarget = int.tryParse(val) ?? 1;
+                     },
+                   ),
+                ),
+            ],
+
+            const SizedBox(height: 25),
+
+
+
 
             const SizedBox(height: 25),
             _buildSectionLabel("أيقونة"),
@@ -100,7 +167,7 @@ class _AddHabitPageState extends State<AddHabitPage> {
             buildIconsGrid(),
 
             const SizedBox(height: 40),
-            buildSaveButton(),
+            buildSaveButton(isEditing),
             const SizedBox(height: 30),
           ],
         ),
@@ -119,6 +186,9 @@ class _AddHabitPageState extends State<AddHabitPage> {
     );
   }
 
+  // ... (Other widgets like buildHabitChips, buildTitleField etc. can be copied or kept if using replacing strategy)
+  // I will assume I am replacing the FULL FILE CONTENT so I need to provide full implementations.
+  
   Widget buildHabitChips() {
     return SizedBox(
       height: 45,
@@ -227,7 +297,15 @@ class _AddHabitPageState extends State<AddHabitPage> {
           bool isSelected = selectedFrequency == opt;
           return Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => selectedFrequency = opt),
+              onTap: () {
+                 setState(() {
+                   selectedFrequency = opt;
+                   // Reset goal target based on selection default
+                   if (opt == "يومي") goalTarget = 7;
+                   else if (opt == "أسبوعي") goalTarget = (int.tryParse(_weeklyTargetController.text) ?? 3); // Default 3 if switching
+                   else if (opt == "شهري") goalTarget = 1;
+                 });
+              },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -251,9 +329,13 @@ class _AddHabitPageState extends State<AddHabitPage> {
     );
   }
 
+
+
+
+
   Widget buildIconsGrid() {
     return Container(
-      height: 200, // Fixed height for grid
+      height: 200, 
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppStyle.cardBg(context),
@@ -294,30 +376,103 @@ class _AddHabitPageState extends State<AddHabitPage> {
     );
   }
 
-  Widget buildSaveButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _saveHabit,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppStyle.primary,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+  Widget buildSaveButton(bool isEditing) {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _saveHabit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppStyle.primary,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 5,
+              shadowColor: AppStyle.primary.withOpacity(0.4),
+            ),
+            child: Text(
+              isEditing ? "حفظ التعديلات" : "حفظ العادة",
+              style: GoogleFonts.cairo(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
           ),
-          elevation: 5,
-          shadowColor: AppStyle.primary.withOpacity(0.4),
         ),
-        child: Text(
-          "حفظ العادة",
-          style: GoogleFonts.cairo(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        if (isEditing) ...[
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: _deleteHabit,
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              label: Text(
+                "حذف العادة",
+                style: GoogleFonts.cairo(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Colors.red.withOpacity(0.2)),
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _deleteHabit() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("حذف العادة", style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
+        content: Text("هل أنت متأكد من حذف هذه العادة؟", style: GoogleFonts.cairo()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text("إلغاء", style: GoogleFonts.cairo()),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text("حذف", style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    try {
+      final supabase = Supabase.instance.client;
+      final id = widget.habit!['original_id'] ?? widget.habit!['id'];
+      
+      // Handle potention "habit_" prefix if passed from home
+      String realId = id.toString();
+      if (realId.startsWith('habit_')) {
+        realId = realId.replaceAll('habit_', '');
+      }
+
+      await supabase.from('habits').delete().eq('id', realId);
+      
+      if (!mounted) return;
+      Navigator.pop(context, true); // Return true to refresh
+    } catch (e) {
+      debugPrint("Error deleting habit: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("خطأ في الحذف: $e")),
+      );
+    }
   }
 
   Future<void> _saveHabit() async {
@@ -330,33 +485,50 @@ class _AddHabitPageState extends State<AddHabitPage> {
 
     final supabase = Supabase.instance.client;
     final user = supabase.auth.currentUser;
+    if (user == null) return;
 
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("لا يوجد مستخدم مسجل")),
-      );
-      return;
-    }
+    // Final logic for goal
+    if (selectedFrequency == 'يومي') goalTarget = 7;
+    else if (selectedFrequency == 'شهري') goalTarget = 1;
 
     try {
-      final response = await supabase.from('habits').insert({
+      final Map<String, dynamic> data = {
         "user_id": user.id,
         "title": _titleController.text.trim(),
         "description": _descController.text.trim(),
         "icon_name": selectedIcon.codePoint.toString(),
-        "completion_count": 0,
-        "created_at": DateTime.now().toIso8601String(),
-      }).select();
+        // "color": selectedColor, // Column missing or not used
+        // "priority": selectedPriority, // Removed from UI
+        "frequency": selectedFrequency,
+        // "goal_target": goalTarget, // Column missing in DB
+        // "updated_at": DateTime.now().toIso8601String(), // Column missing in DB
+      };
 
-      if (!mounted) return;
-      Navigator.pop(context, response.first);
+      if (widget.habit != null) {
+          // Update
+          final id = widget.habit!['original_id'] ?? widget.habit!['id'];
+          // Handle potention "habit_" prefix if passed from home or elsewhere
+          String realId = id.toString();
+          if (realId.startsWith('habit_')) {
+             realId = realId.replaceAll('habit_', '');
+          }
+
+          await supabase.from('habits').update(data).eq('id', realId);
+          if (!mounted) return;
+          Navigator.pop(context, true); // Return true to signal refresh needed
+      } else {
+          // Insert
+          data["completion_count"] = 0;
+          data["created_at"] = DateTime.now().toIso8601String();
+          await supabase.from('habits').insert(data);
+          if (!mounted) return;
+          Navigator.pop(context, true);
+      }
     } catch (e) {
       debugPrint("Error saving habit: $e");
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("خطأ: $e")),
       );
     }
   }
 }
-

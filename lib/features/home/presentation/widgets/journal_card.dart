@@ -28,12 +28,12 @@ class JournalCard extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             if (hasJournal) ...[
-              if ((latestJournal!['mode_name'] ?? '').contains('غاضب')) const Color(0xFFEF9A9A) 
-              else if ((latestJournal!['mode_name'] ?? '').contains('حزين')) const Color(0xFF90CAF9) 
-              else if ((latestJournal!['mode_name'] ?? '').contains('قلق')) const Color(0xFFCE93D8) 
-              else if ((latestJournal!['mode_name'] ?? '').contains('متحمس') || (latestJournal!['mode_name'] ?? '').contains('سعيد')) const Color(0xFFFFCC80) 
-              else const Color(0xFF80CBC4) 
-            ] else ...[const Color(0xFFAED581)], 
+              if ((latestJournal!['mode_name'] ?? '').contains('غاضب')) const Color(0xFFEF5350) 
+              else if ((latestJournal!['mode_name'] ?? '').contains('حزين')) const Color(0xFF42A5F5) 
+              else if ((latestJournal!['mode_name'] ?? '').contains('قلق')) const Color(0xFFAB47BC) 
+              else if ((latestJournal!['mode_name'] ?? '').contains('متحمس') || (latestJournal!['mode_name'] ?? '').contains('سعيد')) const Color(0xFFFFA726) 
+              else const Color(0xFF26A69A) 
+            ] else ...[const Color(0xFF9CCC65)], 
             AppStyle.isDark(context) ? const Color(0xFF424242) : Colors.white
           ], 
           begin: Alignment.topLeft,

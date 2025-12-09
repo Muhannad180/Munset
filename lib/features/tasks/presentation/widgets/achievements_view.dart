@@ -15,319 +15,165 @@ class AchievementsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Calculations
-    final allTasks = [...habits, ...tasks]; // Or just tasks? Screenshot implied both or separate.
-    // Logic from tasks.dart: mixed habits and tasks for completion count?
-    // Actually tasks.dart used "items which have 'is_completed' == true". Habits don't strictly have is_completed in the same way usually, but the simplified code in tasks.dart seemed to treat them similarly or just tracked tasks.
-    // Let's stick to: Tasks -> is_completed. Habits -> completion_count.
+    // 1. Prepare Data
+    final int totalTasks = tasks.length;
+    final int completedTasks = tasks.where((t) => t['is_completed'] == true).length;
 
-    final completedTasksCount = tasks.where((t) => t['is_completed'] == true).length;
+    final int totalHabits = habits.length;
+    final int effectiveHabitCompletions = habits.where((h) => (h['completion_count'] ?? 0) > 0).length;
+
+    final int totalItems = (totalTasks + totalHabits) > 0 ? (totalTasks + totalHabits) : 1;
+    final int totalCompleted = completedTasks + effectiveHabitCompletions;
     
-    final totalHabitCompletions = habits.fold<int>(0, (sum, habit) {
-      final count = habit['completion_count'];
-      return sum + (count is int ? count : (count is double ? count.toInt() : 0));
-    });
+    int incomplete = (totalTasks + totalHabits) - totalCompleted;
+    if (incomplete < 0) incomplete = 0;
 
-    final maxHabitCompletion = habits.isEmpty
-        ? 10.0
-        : habits.fold<double>(10.0, (max, habit) {
-            final count = habit['completion_count'];
-            final val = count is int
-                ? count.toDouble()
-                : (count is double ? count : 0.0);
-            return val > max ? val : max;
-          });
+    final double percentageVal = (totalTasks + totalHabits) > 0 
+        ? (totalCompleted / (totalTasks + totalHabits)) * 100 
+        : 0;
+    final int percentage = percentageVal.round();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            "ملخص نشاطك",
-            style: GoogleFonts.cairo(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppStyle.textMain(context),
-            ),
-            textAlign: TextAlign.right,
-          ),
-          const SizedBox(height: 20),
+    // 2. Define Colors (Standard App Theme)
+    final Color segment1 = AppStyle.primary; // 0xFF4DB6AC
+    final Color segment2 = AppStyle.accent;  // 0xFFFFB74D
+    
+    // Adaptive colors
+    final bool isDark = AppStyle.isDark(context);
+    final Color incompleteSegment = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
+    final Color textColor = AppStyle.textMain(context);
+    final Color subTextColor = AppStyle.textSmall(context);
 
-          // 1. Stats Row
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  context,
-                  title: "المهام المنجزة",
-                  value: "$completedTasksCount",
-                  icon: Icons.check_circle_outline,
-                  color: const Color(0xFF4DB6AC), // Primary Teal
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildStatCard(
-                  context,
-                  title: "إنجاز العادات",
-                  value: "$totalHabitCompletions",
-                  icon: Icons.local_fire_department,
-                  color: const Color(0xFFFFB74D), // Accent Orange
-                ),
-              ),
-            ],
-          ),
+    // Values
+    final double valTasks = completedTasks.toDouble();
+    final double valHabits = effectiveHabitCompletions.toDouble();
+    final double valIncomplete = incomplete.toDouble();
+    final bool isEmpty = (valTasks + valHabits + valIncomplete) == 0;
 
-          const SizedBox(height: 30),
-
-          // 2. Bar Chart Section (Habits)
-          _buildSectionContainer(
-            context,
-            title: "أداء العادات",
-            child: habits.isEmpty
-                ? _buildEmptyState(context, "لا توجد عادات لعرض الرسم البياني")
-                : AspectRatio(
-                    aspectRatio: 1.5,
-                    child: BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: maxHabitCompletion + 2,
-                        barTouchData: BarTouchData(
-                          enabled: true,
-                          touchTooltipData: BarTouchTooltipData(
-                            getTooltipColor: (_) => Colors.blueGrey,
-                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                              return BarTooltipItem(
-                                (rod.toY.toInt()).toString(),
-                                const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                              );
-                            },
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Chart Section
+            SizedBox(
+              height: 320,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                   PieChart(
+                    PieChartData(
+                      startDegreeOffset: -90,
+                      sectionsSpace: 0,
+                      centerSpaceRadius: 100,
+                      sections: isEmpty ? [
+                         PieChartSectionData(
+                          value: 1,
+                          color: incompleteSegment,
+                          radius: 50,
+                          showTitle: false,
+                        )
+                      ] : [
+                        // Segment 1: Tasks
+                        if (valTasks > 0)
+                          PieChartSectionData(
+                            value: valTasks,
+                            color: segment1,
+                            radius: 50,
+                            showTitle: false,
                           ),
-                        ),
-                        titlesData: FlTitlesData(
-                          show: true,
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 40,
-                              getTitlesWidget: (value, meta) {
-                                if (value.toInt() < 0 || value.toInt() >= habits.length) {
-                                  return const SizedBox();
-                                }
-                                final habit = habits[value.toInt()];
-                                String title = (habit['title'] ?? '').toString();
-                                if (title.length > 5) title = "${title.substring(0, 4)}..";
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    title,
-                                    style: TextStyle(
-                                      color: AppStyle.textSmall(context),
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                        // Segment 2: Habits
+                        if (valHabits > 0)
+                          PieChartSectionData(
+                            value: valHabits,
+                            color: segment2,
+                            radius: 50,
+                            showTitle: false,
                           ),
-                        ),
-                        gridData: const FlGridData(show: false),
-                        borderData: FlBorderData(show: false),
-                        barGroups: List.generate(habits.length, (index) {
-                          final habit = habits[index];
-                          final count = habit['completion_count'] ?? 0;
-                          final val = count is int ? count.toDouble() : (count is double ? count : 0.0);
-                          return BarChartGroupData(
-                            x: index,
-                            barRods: [
-                              BarChartRodData(
-                                toY: val > 0 ? val : 0.2, // Min height for visibility
-                                color: AppStyle.primary,
-                                width: 16,
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                                backDrawRodData: BackgroundBarChartRodData(
-                                  show: true,
-                                  toY: maxHabitCompletion + 2,
-                                  color: AppStyle.isDark(context) ? Colors.white10 : Colors.grey.shade100,
-                                ),
-                              ),
-                            ],
-                          );
-                        }),
-                      ),
+                        // Segment 3: Incomplete
+                        if (valIncomplete > 0)
+                          PieChartSectionData(
+                            value: valIncomplete,
+                            color: incompleteSegment,
+                            radius: 50,
+                            showTitle: false,
+                          ),
+                      ],
                     ),
                   ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // 3. Pie Chart (Tasks)
-          _buildSectionContainer(
-            context,
-            title: "حالة المهام",
-            child: tasks.isEmpty
-                ? _buildEmptyState(context, "لا توجد مهام حالياً")
-                : Row(
+                  // Center Text
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                             _buildLegendItem(context, "منجزة", const Color(0xFF4CAF50), completedTasksCount),
-                             const SizedBox(height: 10),
-                             _buildLegendItem(context, "غير منجزة", const Color(0xFFFF7043), tasks.length - completedTasksCount),
-                          ],
+                      Text(
+                        "$percentage%",
+                        style: GoogleFonts.cairo(
+                          fontSize: 56,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                          height: 1.0,
                         ),
                       ),
-                      SizedBox(
-                        height: 150,
-                        width: 150,
-                        child: PieChart(
-                          PieChartData(
-                            sectionsSpace: 4,
-                            centerSpaceRadius: 40,
-                            sections: [
-                              if (completedTasksCount > 0)
-                                PieChartSectionData(
-                                  value: completedTasksCount.toDouble(),
-                                  color: const Color(0xFF4CAF50),
-                                  radius: 20,
-                                  showTitle: false,
-                                ),
-                              if ((tasks.length - completedTasksCount) > 0)
-                                PieChartSectionData(
-                                  value: (tasks.length - completedTasksCount).toDouble(),
-                                  color: const Color(0xFFFF7043),
-                                  radius: 20,
-                                  showTitle: false,
-                                ),
-                            ],
-                          ),
+                      Text(
+                        "اكتمل",
+                        style: GoogleFonts.cairo(
+                          fontSize: 24,
+                          color: subTextColor,
+                          height: 1.0,
                         ),
                       ),
                     ],
                   ),
-          ),
-          const SizedBox(height: 80), // Space for FAB
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(BuildContext context, {required String title, required String value, required IconData icon, required Color color}) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppStyle.cardBg(context),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.2),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: GoogleFonts.cairo(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: AppStyle.textMain(context),
-            ),
-          ),
-          Text(
-            title,
-            style: GoogleFonts.cairo(
-              fontSize: 12,
-              color: AppStyle.textSmall(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionContainer(BuildContext context, {required String title, required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppStyle.cardBg(context),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: GoogleFonts.cairo(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppStyle.textMain(context),
-                ),
+                ],
               ),
-              Icon(Icons.more_horiz, color: AppStyle.textSmall(context)),
-            ],
-          ),
-          const SizedBox(height: 20),
-          child,
-        ],
-      ),
-    );
-  }
+            ),
 
-  Widget _buildEmptyState(BuildContext context, String msg) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Text(
-          msg,
-          style: TextStyle(color: AppStyle.textSmall(context)),
-          textAlign: TextAlign.center,
+            const SizedBox(height: 60),
+
+            // Legend Section
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppStyle.cardBg(context),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: AppStyle.cardShadow(context),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                   _buildLegendItem(context, "المهام", segment1),
+                   _buildLegendItem(context, "العادات", segment2),
+                   _buildLegendItem(context, "لم تكتمل", isDark ? Colors.grey.shade600 : Colors.grey.shade400),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 40),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildLegendItem(BuildContext context, String label, Color color, int count) {
+  Widget _buildLegendItem(BuildContext context, String label, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
         ),
         const SizedBox(width: 8),
         Text(
-          "$label ($count)",
+          label,
           style: GoogleFonts.cairo(
             color: AppStyle.textMain(context),
-            fontSize: 12,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
