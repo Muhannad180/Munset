@@ -8,11 +8,7 @@ class HabitCard extends StatefulWidget {
   final Map<String, dynamic> habit;
   final VoidCallback onIncrement;
 
-  const HabitCard({
-    super.key,
-    required this.habit,
-    required this.onIncrement,
-  });
+  const HabitCard({super.key, required this.habit, required this.onIncrement});
 
   @override
   State<HabitCard> createState() => _HabitCardState();
@@ -28,7 +24,7 @@ class _HabitCardState extends State<HabitCard> {
 
     try {
       final url = Uri.parse('http://127.0.0.1:10000/habit-advice');
-      
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -36,7 +32,7 @@ class _HabitCardState extends State<HabitCard> {
       );
 
       print("DEBUG: Response Code ${response.statusCode}");
-      
+
       if (!mounted) return;
 
       if (response.statusCode == 200) {
@@ -74,7 +70,9 @@ class _HabitCardState extends State<HabitCard> {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           backgroundColor: AppStyle.cardBg(context),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Row(
             children: [
               const Icon(Icons.lightbulb, color: Colors.amber, size: 28),
@@ -93,7 +91,7 @@ class _HabitCardState extends State<HabitCard> {
           content: Text(
             advice,
             style: GoogleFonts.cairo(
-              fontSize: 16, 
+              fontSize: 16,
               height: 1.5,
               color: AppStyle.textMain(context),
             ),
@@ -101,7 +99,10 @@ class _HabitCardState extends State<HabitCard> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text("حسناً", style: GoogleFonts.cairo(color: AppStyle.primary)),
+              child: Text(
+                "حسناً",
+                style: GoogleFonts.cairo(color: AppStyle.primary),
+              ),
             ),
           ],
         ),
@@ -114,13 +115,15 @@ class _HabitCardState extends State<HabitCard> {
     final habit = widget.habit;
     final title = (habit['title'] ?? '').toString();
     final description = (habit['description'] ?? '').toString();
-    
+
     // Parse new fields with fallbacks
     final completionCount = habit['completion_count'] ?? 0;
-    final int goalTarget = (habit['goal_target'] is int) ? habit['goal_target'] : 1;
-    final String goalUnit = (habit['goal_unit'] ?? 'مرات').toString();
+    final int goalTarget = (habit['Goal'] is int)
+        ? habit['Goal']
+        : 7; // Use 'Goal' column
+    final String goalUnit = (habit['frequency'] ?? 'يومي').toString();
     final String priority = (habit['priority'] ?? 'متوسط').toString();
-    
+
     // Parse Color
     final dynamic colorVal = habit['color'];
     Color habitColor = AppStyle.primary;
@@ -156,10 +159,7 @@ class _HabitCardState extends State<HabitCard> {
             offset: const Offset(0, 5),
           ),
         ],
-        border: Border.all(
-          color: habitColor.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: habitColor.withOpacity(0.3), width: 1),
       ),
       child: Column(
         children: [
@@ -202,21 +202,30 @@ class _HabitCardState extends State<HabitCard> {
                         // Priority Badge
                         if (priority != "متوسط")
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: priority == "عالية" ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                              color: priority == "عالية"
+                                  ? Colors.red.withOpacity(0.1)
+                                  : Colors.green.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: priority == "عالية" ? Colors.red.withOpacity(0.5) : Colors.green.withOpacity(0.5), 
-                                width: 0.5
-                              )
+                                color: priority == "عالية"
+                                    ? Colors.red.withOpacity(0.5)
+                                    : Colors.green.withOpacity(0.5),
+                                width: 0.5,
+                              ),
                             ),
                             child: Text(
                               priority,
                               style: GoogleFonts.cairo(
                                 fontSize: 10,
-                                color: priority == "عالية" ? Colors.red : Colors.green,
-                                fontWeight: FontWeight.bold
+                                color: priority == "عالية"
+                                    ? Colors.red
+                                    : Colors.green,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
@@ -243,17 +252,23 @@ class _HabitCardState extends State<HabitCard> {
 
               // Bulb Icon Action
               IconButton(
-                onPressed: _isLoadingAdvice ? null : () => _fetchAndShowAdvice(context),
-                icon: _isLoadingAdvice 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                onPressed: _isLoadingAdvice
+                    ? null
+                    : () => _fetchAndShowAdvice(context),
+                icon: _isLoadingAdvice
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(Icons.lightbulb, color: Colors.amber),
                 tooltip: "نصيحة ذكية",
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Progress & Action
           Row(
             children: [
@@ -288,7 +303,9 @@ class _HabitCardState extends State<HabitCard> {
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: progress,
-                        backgroundColor: AppStyle.isDark(context) ? Colors.white10 : Colors.grey[200],
+                        backgroundColor: AppStyle.isDark(context)
+                            ? Colors.white10
+                            : Colors.grey[200],
                         color: habitColor,
                         minHeight: 6,
                       ),
@@ -296,36 +313,42 @@ class _HabitCardState extends State<HabitCard> {
                   ],
                 ),
               ),
-              
+
               const SizedBox(width: 16),
-              
+
               // Increment Button
               InkWell(
-                onTap: (completionCount >= goalTarget) ? null : widget.onIncrement,
+                onTap: (completionCount >= goalTarget)
+                    ? null
+                    : widget.onIncrement,
                 borderRadius: BorderRadius.circular(30),
                 child: Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: (completionCount >= goalTarget) ? Colors.grey : habitColor,
+                    color: (completionCount >= goalTarget)
+                        ? Colors.grey
+                        : habitColor,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: (completionCount >= goalTarget) ? Colors.grey.withOpacity(0.4) : habitColor.withOpacity(0.4),
+                        color: (completionCount >= goalTarget)
+                            ? Colors.grey.withOpacity(0.4)
+                            : habitColor.withOpacity(0.4),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: Icon(
-                    (completionCount >= goalTarget) ? Icons.check : Icons.add, 
-                    color: Colors.white, 
-                    size: 28
+                    (completionCount >= goalTarget) ? Icons.check : Icons.add,
+                    color: Colors.white,
+                    size: 28,
                   ),
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );

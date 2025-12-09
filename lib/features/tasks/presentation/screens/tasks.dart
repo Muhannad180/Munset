@@ -7,20 +7,24 @@ import 'package:test1/features/tasks/presentation/screens/add_habit_screen.dart'
 import 'package:test1/features/tasks/presentation/widgets/achievements_view.dart';
 import 'package:test1/features/tasks/presentation/widgets/habit_card.dart';
 import 'package:test1/features/tasks/presentation/widgets/task_tile.dart';
+import 'package:test1/features/tasks/presentation/widgets/habits_chart.dart';
 import 'dart:ui' as ui;
 
 class TasksScreen extends StatefulWidget {
   final VoidCallback? onDataUpdated;
-  const TasksScreen({super.key, this.onDataUpdated});
+  final ValueNotifier<bool>?
+  refreshNotifier; // Listen for refresh from other screens
+  const TasksScreen({super.key, this.onDataUpdated, this.refreshNotifier});
 
   @override
   State<TasksScreen> createState() => _TasksScreenState();
 }
 
-class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin {
+class _TasksScreenState extends State<TasksScreen>
+    with TickerProviderStateMixin {
   final supabase = Supabase.instance.client;
   final authService = AuthService();
-  
+
   List<Map<String, dynamic>> tasks = [];
   List<Map<String, dynamic>> habits = [];
   bool isLoading = true;
@@ -42,7 +46,17 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
         setState(() {}); // Rebuild to update background
       }
     });
+    // Listen for refresh requests from other screens
+    widget.refreshNotifier?.addListener(_loadAllData);
     _loadAllData();
+  }
+
+  @override
+  void dispose() {
+    widget.refreshNotifier?.removeListener(_loadAllData);
+    _btnController.dispose();
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAllData() async {
@@ -67,7 +81,28 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
 
       if (mounted) {
         setState(() {
-          habits = List<Map<String, dynamic>>.from(habitsRes);
+          habits = List<Map<String, dynamic>>.from(habitsRes).map((h) {
+            // Process History for Last 7 Days
+            List<DateTime> historyDates = [];
+            if (h['history'] != null && h['history'] is List) {
+              historyDates = (h['history'] as List)
+                  .map((e) => DateTime.tryParse(e.toString()))
+                  .whereType<DateTime>()
+                  .toList();
+            }
+            final now = DateTime.now();
+            final sevenDaysAgo = now.subtract(const Duration(days: 7));
+            final int last7DaysCount = historyDates
+                .where((d) => d.isAfter(sevenDaysAgo))
+                .length;
+
+            return {
+              ...h,
+              'weekly_current': historyDates.isNotEmpty
+                  ? last7DaysCount
+                  : (h['completion_count'] ?? 0),
+            };
+          }).toList();
           tasks = List<Map<String, dynamic>>.from(tasksRes);
           isLoading = false;
         });
@@ -87,18 +122,51 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
       setState(() {
         int index = habits.indexWhere((h) => h['id'] == habitId);
         if (index != -1) {
-          habits[index]['completion_count'] = newCount;
+          // Update History locally
+          List<String> history = List<String>.from(
+            habits[index]['history'] ?? [],
+          );
+          history.add(DateTime.now().toUtc().toIso8601String());
+
+          final now = DateTime.now();
+          final sevenDaysAgo = now.subtract(const Duration(days: 7));
+          final int realWeeklyCount = history.where((ts) {
+            final dt = DateTime.tryParse(ts);
+            return dt != null && dt.isAfter(sevenDaysAgo);
+          }).length;
+
+          habits[index] = {
+            ...habits[index],
+            'completion_count': newCount,
+            'last_done_at': DateTime.now().toIso8601String(),
+            'history': history,
+            'weekly_current': realWeeklyCount,
+          };
         }
       });
 
+      final dbHabit = habits.firstWhere((h) => h['id'] == habitId);
+
       await supabase
           .from('habits')
-          .update({'completion_count': newCount})
+          .update({
+            'completion_count': newCount,
+            'last_done_at': DateTime.now().toUtc().toIso8601String(),
+            'history': dbHabit['history'],
+          })
           .eq('id', habitId);
 
       widget.onDataUpdated?.call();
     } catch (e) {
       debugPrint("Error incrementing habit: $e");
+      String msg = "خطأ في تحديث العادة";
+      if (e.toString().contains("column") && e.toString().contains("history")) {
+        msg = "Missing 'history' column in DB. Please add it.";
+      }
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
       _loadAllData();
     }
   }
@@ -133,9 +201,7 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
   void _openAddHabitPage({Map<String, dynamic>? habitToEdit}) async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => AddHabitPage(habit: habitToEdit),
-      ),
+      MaterialPageRoute(builder: (context) => AddHabitPage(habit: habitToEdit)),
     );
 
     if (result != null) {
@@ -154,44 +220,40 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
           top: false,
           child: Column(
             children: [
-              SizedBox(
-                height: 150,
-                child: Stack(
-                  alignment: Alignment.topCenter,
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                alignment: Alignment.centerRight,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      height: 120,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                          colors: AppStyle.isDark(context) 
-                            ? [const Color(0xFF1F2E2C), AppStyle.bgTop(context)] 
-                            : [AppStyle.primary, AppStyle.primary.withOpacity(0.6)],
-                        ),
-                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+                    Text(
+                      "الأنشطة",
+                      style: GoogleFonts.cairo(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppStyle.textMain(context),
                       ),
                     ),
-                    Positioned(
-                      top: 60,
-                      child: Column(
-                        children: [
-                          Text("الأنشطة", style: GoogleFonts.cairo(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                          Text("تابع مهامك وابنِ عاداتك", style: GoogleFonts.cairo(color: Colors.white70, fontSize: 12)),
-                        ],
+                    Text(
+                      "تابع تقدمك اليومي",
+                      style: GoogleFonts.cairo(
+                        fontSize: 16,
+                        color: AppStyle.textSmall(context),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 10),
 
               // Custom Tab Bar
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: AppStyle.isDark(context) ? Colors.black26 : Colors.white,
+                  color: AppStyle.isDark(context)
+                      ? Colors.black26
+                      : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
@@ -230,7 +292,11 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
               // Content using TabBarView
               Expanded(
                 child: isLoading
-                    ? Center(child: CircularProgressIndicator(color: AppStyle.primary))
+                    ? Center(
+                        child: CircularProgressIndicator(
+                          color: AppStyle.primary,
+                        ),
+                      )
                     : TabBarView(
                         controller: _tabController,
                         physics: const BouncingScrollPhysics(),
@@ -244,7 +310,6 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
             ],
           ),
         ),
-
       ),
     );
   }
@@ -255,73 +320,92 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
     // 1. Sort the list
     List<Map<String, dynamic>> sortedHabits = List.from(habits);
     if (_sortOption == 'priority') {
-       // High -> Medium -> Low
-       final priorityMap = {'عالية': 3, 'متوسطة': 2, 'منخفضة': 1, 'متوسط': 2};
-       sortedHabits.sort((a, b) {
-          int pA = priorityMap[a['priority'] ?? 'متوسط'] ?? 1;
-          int pB = priorityMap[b['priority'] ?? 'متوسط'] ?? 1;
-          return pB.compareTo(pA); // Descending
-       });
+      // High -> Medium -> Low
+      final priorityMap = {'عالية': 3, 'متوسطة': 2, 'منخفضة': 1, 'متوسط': 2};
+      sortedHabits.sort((a, b) {
+        int pA = priorityMap[a['priority'] ?? 'متوسط'] ?? 1;
+        int pB = priorityMap[b['priority'] ?? 'متوسط'] ?? 1;
+        return pB.compareTo(pA); // Descending
+      });
     } else if (_sortOption == 'alpha') {
-       sortedHabits.sort((a, b) => (a['title'] ?? '').toString().compareTo(b['title'] ?? ''));
+      sortedHabits.sort(
+        (a, b) => (a['title'] ?? '').toString().compareTo(b['title'] ?? ''),
+      );
     }
 
     return Column(
       children: [
-         // Sort Bar
-         Padding(
-           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-           child: Row(
-             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-             children: [
-               Text("عاداتك اليومية", style: GoogleFonts.cairo(fontSize: 18, fontWeight: FontWeight.bold, color: AppStyle.textMain(context))),
-               Container(
-                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                 decoration: BoxDecoration(
-                   color: AppStyle.cardBg(context),
-                   borderRadius: BorderRadius.circular(20),
-                   border: Border.all(color: Colors.grey.withOpacity(0.2)),
-                 ),
-                 child: DropdownButtonHideUnderline(
-                   child: DropdownButton<String>(
-                     value: _sortOption,
-                     dropdownColor: AppStyle.cardBg(context),
-                     icon: Icon(Icons.sort, color: AppStyle.textSmall(context), size: 20),
-                     style: GoogleFonts.cairo(color: AppStyle.textMain(context), fontSize: 14),
-                     items: const [
-                       DropdownMenuItem(value: 'default', child: Text("الأحدث")),
-                       DropdownMenuItem(value: 'priority', child: Text("الأولوية")),
-                       DropdownMenuItem(value: 'alpha', child: Text("أبجدي")),
-                     ],
-                     onChanged: (val) {
-                       if(val != null) setState(() => _sortOption = val);
-                     },
-                   ),
-                 ),
-               )
-             ],
-           ),
-         ),
-         
-         // List
-         Expanded(
-           child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-              physics: const BouncingScrollPhysics(),
-              itemCount: sortedHabits.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) return _buildAddHabitCard();
-                final habit = sortedHabits[index - 1];
-                return GestureDetector(
-                   onLongPress: () => _openAddHabitPage(habitToEdit: habit),
-                   child: HabitCard(
-                     habit: habit,
-                     onIncrement: () => _incrementHabitCount(habit),
-                   ),
-                );
-              },
-           ),
-         ),
+        // Sort Bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "عاداتك اليومية",
+                style: GoogleFonts.cairo(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppStyle.textMain(context),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppStyle.cardBg(context),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _sortOption,
+                    dropdownColor: AppStyle.cardBg(context),
+                    icon: Icon(
+                      Icons.sort,
+                      color: AppStyle.textSmall(context),
+                      size: 20,
+                    ),
+                    style: GoogleFonts.cairo(
+                      color: AppStyle.textMain(context),
+                      fontSize: 14,
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'default', child: Text("الأحدث")),
+                      DropdownMenuItem(
+                        value: 'priority',
+                        child: Text("الأولوية"),
+                      ),
+                      DropdownMenuItem(value: 'alpha', child: Text("أبجدي")),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setState(() => _sortOption = val);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // List
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+            physics: const BouncingScrollPhysics(),
+            itemCount: sortedHabits.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) return _buildAddHabitCard();
+              final habit = sortedHabits[index - 1];
+              return GestureDetector(
+                onLongPress: () => _openAddHabitPage(habitToEdit: habit),
+                child: HabitCard(
+                  habit: habit,
+                  onIncrement: () => _incrementHabitCount(habit),
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
@@ -329,22 +413,27 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
   Widget _buildAddHabitCard() {
     return GestureDetector(
       onTap: () {
-         // Animate button controller just for effect? 
-         _openAddHabitPage();
+        // Animate button controller just for effect?
+        _openAddHabitPage();
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
         decoration: BoxDecoration(
-          color: AppStyle.isDark(context) ? Colors.white10 : Colors.white.withOpacity(0.8),
+          color: AppStyle.isDark(context)
+              ? Colors.white10
+              : Colors.white.withOpacity(0.8),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppStyle.primary.withOpacity(0.3), width: 1),
+          border: Border.all(
+            color: AppStyle.primary.withOpacity(0.3),
+            width: 1,
+          ),
           boxShadow: [
-             BoxShadow(
-               color: AppStyle.primary.withOpacity(0.05),
-               blurRadius: 10,
-               offset: const Offset(0, 4),
-             )
+            BoxShadow(
+              color: AppStyle.primary.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: Row(
@@ -352,7 +441,10 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
           children: [
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: AppStyle.primary.withOpacity(0.1), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: AppStyle.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
               child: const Icon(Icons.add, color: AppStyle.primary),
             ),
             const SizedBox(width: 12),
@@ -376,27 +468,30 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
 
     // Week logic - simplified to just show relevant info cleanly
     for (int i = 1; i <= 8; i++) {
-        DateTime weekStart = startDate.add(Duration(days: (i - 1) * 7));
-        DateTime weekEnd = weekStart.add(const Duration(days: 7));
-        bool isAvailable = DateTime.now().isAfter(weekStart);
-        // bool isExpired = DateTime.now().isAfter(weekEnd);
+      DateTime weekStart = startDate.add(Duration(days: (i - 1) * 7));
+      DateTime weekEnd = weekStart.add(const Duration(days: 7));
+      bool isAvailable = DateTime.now().isAfter(weekStart);
+      // bool isExpired = DateTime.now().isAfter(weekEnd);
 
-        // Filter tasks? The previous logic just dumped ALL tasks into every week which was weird,
-        // or wait, `tasks.map` was done inside. If tasks aren't date-filtered, then they duplicate?
-        // Looking at previous code...
-        // `...tasks.map` was inside the loop. YES, it duplicated 8 times!
-        // That seems like a bug in the previous code or a placeholder.
-        // I will fix this to just show ONE list of tasks for "Current Week" or just "All Tasks".
-        // The user asked for an overhaul, so fixing logic is valid.
-        // I'll assume they want a simple list of tasks for now.
+      // Filter tasks? The previous logic just dumped ALL tasks into every week which was weird,
+      // or wait, `tasks.map` was done inside. If tasks aren't date-filtered, then they duplicate?
+      // Looking at previous code...
+      // `...tasks.map` was inside the loop. YES, it duplicated 8 times!
+      // That seems like a bug in the previous code or a placeholder.
+      // I will fix this to just show ONE list of tasks for "Current Week" or just "All Tasks".
+      // The user asked for an overhaul, so fixing logic is valid.
+      // I'll assume they want a simple list of tasks for now.
     }
 
     // Since the previous code duplicated tasks for 8 weeks (likely a template),
     // I will replace it with a proper single list of tasks.
     if (tasks.isEmpty) {
-        return Center(
-          child: Text("لا توجد مهام حالياً", style: GoogleFonts.cairo(color: Colors.grey)),
-        );
+      return Center(
+        child: Text(
+          "لا توجد مهام حالياً",
+          style: GoogleFonts.cairo(color: Colors.grey),
+        ),
+      );
     }
 
     return ListView(
@@ -411,10 +506,10 @@ class _TasksScreenState extends State<TasksScreen> with TickerProviderStateMixin
           ),
         ),
         const SizedBox(height: 15),
-        ...tasks.map((t) => TaskTile(task: t, onToggle: () => _toggleTask(t, false))),
+        ...tasks.map(
+          (t) => TaskTile(task: t, onToggle: () => _toggleTask(t, false)),
+        ),
       ],
     );
   }
-
-
 }

@@ -13,43 +13,30 @@ class SignInScreen extends StatefulWidget {
   State<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderStateMixin {
+class _SignInScreenState extends State<SignInScreen> {
   final authService = AuthService();
   final supabase = Supabase.instance.client;
   final usernameOrEmailController = TextEditingController();
   final passwordController = TextEditingController();
   bool _obscurePassword = true;
-  final Color primaryColor = const Color(0xFF5E9E92);
 
-  late AnimationController _btnController;
-  late Animation<double> _scaleAnimation;
+  // Define primary color here as requested
+  final Color primaryColor = const Color(0xFF26A69A);
 
-  @override
-  void initState() {
-    super.initState();
-    _btnController = AnimationController(vsync: this, duration: const Duration(milliseconds: 100));
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(_btnController);
-  }
-
-  @override
-  void dispose() {
-    _btnController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _animateButton(VoidCallback onComplete) async {
-    await _btnController.forward();
-    await _btnController.reverse();
-    onComplete();
-  }
-
-  bool _isEmail(String input) => RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(input);
+  bool _isEmail(String input) =>
+      RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(input);
 
   Future<String?> _getEmailByUsername(String username) async {
     try {
-      final response = await supabase.from('users').select('email').eq('username', username).maybeSingle();
+      final response = await supabase
+          .from('users')
+          .select('email')
+          .eq('username', username)
+          .maybeSingle();
       return response?['email'] as String?;
-    } catch (e) { return null; }
+    } catch (e) {
+      return null;
+    }
   }
 
   void login() async {
@@ -57,75 +44,381 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
     final password = passwordController.text.trim();
     String emailToAuthenticate;
 
-    if (input.isEmpty || password.isEmpty) { _showMsg("يرجى ملء جميع الحقول", Colors.orange); return; }
+    if (input.isEmpty || password.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("يرجى ملء جميع الحقول", style: GoogleFonts.cairo()),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
 
     if (_isEmail(input)) {
       emailToAuthenticate = input;
     } else {
       final foundEmail = await _getEmailByUsername(input);
-      if (foundEmail == null) { _showMsg("اسم المستخدم غير موجود", Colors.red); return; }
+      if (foundEmail == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "اسم المستخدم غير موجود",
+                style: GoogleFonts.cairo(),
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
       emailToAuthenticate = foundEmail;
     }
 
     try {
-      final response = await authService.signInWithEmailPassword(emailToAuthenticate, password);
-      if (response.user != null && mounted) {
-        Navigator.pushReplacement(context, PageRouteBuilder(pageBuilder: (_, __, ___) => MainNavigation(), transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c)));
+      await authService.signInWithEmailPassword(emailToAuthenticate, password);
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => MainNavigation()),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "البريد الإلكتروني أو كلمة المرور غير صحيحة !!",
+              style: GoogleFonts.cairo(),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    } catch (e) { _showMsg("بيانات الدخول غير صحيحة", Colors.red); }
+    }
   }
 
-  void _showMsg(String msg, Color color) {
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg, style: GoogleFonts.cairo()), backgroundColor: color));
+  @override
+  void dispose() {
+    usernameOrEmailController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    const double topGradientHeight = 220;
+    const double wavesHeight = 160;
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F9FA),
+        backgroundColor: const Color.fromARGB(255, 245, 245, 245),
         body: Column(
           children: [
+            // الجزء العلوي
             SizedBox(
-              height: 260,
+              height: topGradientHeight,
               child: Stack(
                 children: [
-                  CustomPaint(size: const Size(double.infinity, 260), painter: _HeaderPainter(color: primaryColor)),
-                  Center(child: Padding(padding: const EdgeInsets.only(top: 40), child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.psychology, size: 60, color: Colors.white),
-                    const SizedBox(height: 10),
-                    Text('مُنصت', style: GoogleFonts.cairo(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold)),
-                  ]))),
+                  CustomPaint(
+                    size: const Size(double.infinity, topGradientHeight),
+                    painter: _TopGradientPainter(),
+                  ),
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 40),
+                      child: Text(
+                        'مُنصت',
+                        style: GoogleFonts.cairo(
+                          fontSize: 36,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
+
+            // الجزء السفلي
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(60),
+                    topRight: Radius.circular(60),
+                  ),
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    const SizedBox(height: 10),
-                    Text('مرحباً بعودتك', style: GoogleFonts.cairo(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
-                    const SizedBox(height: 30),
-                    _buildTextField(controller: usernameOrEmailController, label: 'اسم المستخدم أو البريد', icon: Icons.person_outline),
-                    const SizedBox(height: 16),
-                    _buildTextField(controller: passwordController, label: 'كلمة المرور', icon: Icons.lock_outline, isPass: true, obscure: _obscurePassword, onEyePressed: () => setState(() => _obscurePassword = !_obscurePassword)),
-                    Align(alignment: Alignment.centerLeft, child: TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())), child: Text('نسيت كلمة المرور؟', style: GoogleFonts.cairo(color: primaryColor, fontWeight: FontWeight.bold)))),
-                    const SizedBox(height: 20),
-                    GestureDetector(
-                      onTap: () => _animateButton(login),
-                      child: AnimatedBuilder(
-                        animation: _scaleAnimation,
-                        builder: (context, child) => Transform.scale(scale: _scaleAnimation.value, child: child),
-                        child: Container(width: double.infinity, height: 55, decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(15), boxShadow: [BoxShadow(color: primaryColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]), child: Center(child: Text('تسجيل الدخول', style: GoogleFonts.cairo(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)))),
+                    // الموجات
+                    Positioned(
+                      top: -wavesHeight + 20,
+                      left: 0,
+                      right: 0,
+                      child: SizedBox(
+                        height: wavesHeight,
+                        child: CustomPaint(
+                          size: const Size(double.infinity, wavesHeight),
+                          painter: _WavesPainter(),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 30),
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Text('ليس لديك حساب؟ ', style: GoogleFonts.cairo(color: Colors.grey)),
-                      GestureDetector(onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SignUpScreen())), child: Text('إنشاء حساب جديد', style: GoogleFonts.cairo(color: primaryColor, fontWeight: FontWeight.bold))),
-                    ]),
+
+                    // المحتوى
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 40, 24, 20),
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'مرحباً بعودتك',
+                                    style: GoogleFonts.cairo(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'يرجى تسجيل الدخول للمتابعة',
+                                    style: GoogleFonts.cairo(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 26),
+
+                                  // البريد الإلكتروني (أو اسم المستخدم)
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.03),
+                                          blurRadius: 15,
+                                          offset: const Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: TextField(
+                                      controller: usernameOrEmailController,
+                                      style: GoogleFonts.cairo(),
+                                      decoration: InputDecoration(
+                                        hintText: 'اسم المستخدم أو البريد',
+                                        hintStyle: GoogleFonts.cairo(
+                                          color: Colors.grey[400],
+                                        ),
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        prefixIcon: Icon(
+                                          Icons.person_outline,
+                                          color: primaryColor,
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 14,
+                                            ),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 18),
+
+                                  // كلمة المرور
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.03),
+                                          blurRadius: 15,
+                                          offset: const Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: TextField(
+                                      controller: passwordController,
+                                      obscureText: _obscurePassword,
+                                      style: GoogleFonts.cairo(),
+                                      decoration: InputDecoration(
+                                        hintText: 'كلمة المرور',
+                                        hintStyle: GoogleFonts.cairo(
+                                          color: Colors.grey[400],
+                                        ),
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        prefixIcon: Icon(
+                                          Icons.lock_outline,
+                                          color: primaryColor,
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 14,
+                                            ),
+                                        suffixIcon: IconButton(
+                                          icon: Icon(
+                                            _obscurePassword
+                                                ? Icons.visibility_off_outlined
+                                                : Icons.visibility_outlined,
+                                            color: Colors.grey,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _obscurePassword =
+                                                  !_obscurePassword;
+                                            });
+                                          },
+                                        ),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 12),
+
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const ForgotPasswordScreen(),
+                                          ),
+                                        );
+                                      },
+                                      child: Text(
+                                        'نسيت كلمة المرور؟',
+                                        style: GoogleFonts.cairo(
+                                          color: primaryColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 30),
+
+                                  // زر تسجيل الدخول
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 55,
+                                    child: ElevatedButton(
+                                      onPressed: login,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: primaryColor,
+                                        elevation: 5,
+                                        shadowColor: primaryColor.withOpacity(
+                                          0.4,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            15,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'تسجيل الدخول',
+                                        style: GoogleFonts.cairo(
+                                          fontSize: 18,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'ليس لديك حساب؟ ',
+                                style: GoogleFonts.cairo(
+                                  color: primaryColor,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const SignUpScreen(),
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  'إنشاء حساب',
+                                  style: GoogleFonts.cairo(
+                                    color: Colors.blueAccent,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -135,21 +428,63 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
       ),
     );
   }
-
-  Widget _buildTextField({required TextEditingController controller, required String label, required IconData icon, bool isPass = false, bool obscure = false, VoidCallback? onEyePressed}) {
-    return TextField(controller: controller, obscureText: obscure, style: GoogleFonts.cairo(), decoration: InputDecoration(labelText: label, labelStyle: GoogleFonts.cairo(color: Colors.grey), prefixIcon: Icon(icon, color: primaryColor), suffixIcon: isPass ? IconButton(icon: Icon(obscure ? Icons.visibility_off : Icons.visibility, color: Colors.grey), onPressed: onEyePressed) : null, filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor, width: 1.5))));
-  }
 }
 
-class _HeaderPainter extends CustomPainter {
-  final Color color;
-  _HeaderPainter({required this.color});
+class _TopGradientPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    final path = Path()..lineTo(0, size.height - 50)..quadraticBezierTo(size.width / 2, size.height + 20, size.width, size.height - 50)..lineTo(size.width, 0)..close();
+    final double h = size.height;
+    final double w = size.width;
+
+    Path path = Path();
+    path.moveTo(0, 0);
+    path.lineTo(w, 0);
+    path.lineTo(w, h - 40);
+    path.quadraticBezierTo(w * 0.5, h + 50, 0, h - 40);
+    path.close();
+
+    final Rect rect = Rect.fromLTWH(0, 0, w, h);
+    final Gradient gradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: const [Color(0xFF80CBC4), Color(0xFF4DB6AC), Color(0xFF26A69A)],
+    );
+
+    final Paint paint = Paint()..shader = gradient.createShader(rect);
     canvas.drawPath(path, paint);
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _WavesPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double w = size.width;
+    final double h = size.height;
+
+    Paint paint1 = Paint()..color = const Color(0xFFE9E9E9);
+    Path p1 = Path();
+    p1.moveTo(0, h * 0.6);
+    p1.quadraticBezierTo(w * 0.25, h * 0.45, w * 0.5, h * 0.6);
+    p1.quadraticBezierTo(w * 0.75, h * 0.75, w, h * 0.6);
+    p1.lineTo(w, h);
+    p1.lineTo(0, h);
+    p1.close();
+    canvas.drawPath(p1, paint1);
+
+    Paint paint2 = Paint()..color = const Color(0xFFF5F5F5);
+    Path p2 = Path();
+    p2.moveTo(0, h * 0.75);
+    p2.quadraticBezierTo(w * 0.28, h * 0.6, w * 0.5, h * 0.75);
+    p2.quadraticBezierTo(w * 0.72, h * 0.9, w, h * 0.75);
+    p2.lineTo(w, h);
+    p2.lineTo(0, h);
+    p2.close();
+    canvas.drawPath(p2, paint2);
+  }
+
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

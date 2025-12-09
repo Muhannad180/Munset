@@ -17,16 +17,18 @@ class _AddHabitPageState extends State<AddHabitPage> {
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _weeklyTargetController = TextEditingController();
 
-  String selectedPriority = "متوسط"; // low, medium, high
   String selectedFrequency = "يومي"; // daily, weekly, monthly
-  int goalTarget = 7; 
-  String goalUnit = "week";
-  int selectedColor = 0xFF4DB6AC; 
+  int goalTarget = 7;
   IconData selectedIcon = Icons.star;
   String? selectedCommonHabit;
 
   final List<String> commonHabits = [
-    "قراءة", "رياضة", "شرب الماء", "تأمل", "نوم مبكر", "فطور صحي",
+    "قراءة",
+    "رياضة",
+    "شرب الماء",
+    "تأمل",
+    "نوم مبكر",
+    "فطور صحي",
   ];
 
   final Map<String, String> habitDescriptions = {
@@ -39,16 +41,26 @@ class _AddHabitPageState extends State<AddHabitPage> {
   };
 
   final List<IconData> iconsList = [
-    Icons.book, Icons.fitness_center, Icons.local_drink, Icons.self_improvement,
-    Icons.bed, Icons.restaurant, Icons.work, Icons.school, Icons.code,
-    Icons.brush, Icons.music_note, Icons.camera_alt, Icons.directions_bike,
-    Icons.directions_run, Icons.pool, Icons.spa, Icons.wb_sunny,
-    Icons.nightlight_round, Icons.star, Icons.favorite,
-  ];
-
-  final List<Color> colorOptions = [
-    const Color(0xFF4DB6AC), const Color(0xFFEF5350), const Color(0xFFFFA726),
-    const Color(0xFF42A5F5), const Color(0xFFAB47BC), const Color(0xFF8D6E63),
+    Icons.book,
+    Icons.fitness_center,
+    Icons.local_drink,
+    Icons.self_improvement,
+    Icons.bed,
+    Icons.restaurant,
+    Icons.work,
+    Icons.school,
+    Icons.code,
+    Icons.brush,
+    Icons.music_note,
+    Icons.camera_alt,
+    Icons.directions_bike,
+    Icons.directions_run,
+    Icons.pool,
+    Icons.spa,
+    Icons.wb_sunny,
+    Icons.nightlight_round,
+    Icons.star,
+    Icons.favorite,
   ];
 
   @override
@@ -58,23 +70,21 @@ class _AddHabitPageState extends State<AddHabitPage> {
       final h = widget.habit!;
       _titleController.text = h['title'] ?? '';
       _descController.text = h['description'] ?? '';
-      
-      selectedPriority = h['priority'] ?? "متوسط";
+
       selectedFrequency = h['frequency'] ?? "يومي";
-      goalTarget = h['goal_target'] ?? 7;
-      if (h['color'] != null) selectedColor = h['color'];
-      
+      goalTarget = h['Goal'] ?? 7; // Load from 'Goal' column
+
       // Icon Parsing
       final iconVal = h['icon_name'];
       if (iconVal != null) {
-         int? codePoint = int.tryParse(iconVal.toString());
-         if (codePoint != null) {
-            selectedIcon = IconData(codePoint, fontFamily: 'MaterialIcons');
-         }
+        int? codePoint = int.tryParse(iconVal.toString());
+        if (codePoint != null) {
+          selectedIcon = IconData(codePoint, fontFamily: 'MaterialIcons');
+        }
       }
-      
+
       if (selectedFrequency == 'أسبوعي') {
-         _weeklyTargetController.text = goalTarget.toString();
+        _weeklyTargetController.text = goalTarget.toString();
       }
     }
   }
@@ -128,38 +138,40 @@ class _AddHabitPageState extends State<AddHabitPage> {
             _buildSectionLabel("التكرار"),
             const SizedBox(height: 10),
             buildFrequencyRow(),
-            
+
             // Conditional Weekly Target Input
             if (selectedFrequency == "أسبوعي") ...[
-                const SizedBox(height: 15),
-                Container(
-                   decoration: BoxDecoration(
-                     color: AppStyle.cardBg(context),
-                     borderRadius: BorderRadius.circular(12),
-                   ),
-                   child: TextField(
-                     controller: _weeklyTargetController,
-                     keyboardType: TextInputType.number,
-                     style: GoogleFonts.cairo(color: AppStyle.textMain(context)),
-                     decoration: InputDecoration(
-                       labelText: "عدد المرات في الأسبوع",
-                       labelStyle: GoogleFonts.cairo(color: AppStyle.textSmall(context)),
-                       hintText: "مثلاً: 3",
-                       border: InputBorder.none,
-                       prefixIcon: const Icon(Icons.repeat, color: Colors.grey),
-                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                     ),
-                     onChanged: (val) {
-                        goalTarget = int.tryParse(val) ?? 1;
-                     },
-                   ),
+              const SizedBox(height: 15),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppStyle.cardBg(context),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                child: TextField(
+                  controller: _weeklyTargetController,
+                  keyboardType: TextInputType.number,
+                  style: GoogleFonts.cairo(color: AppStyle.textMain(context)),
+                  decoration: InputDecoration(
+                    labelText: "عدد المرات في الأسبوع",
+                    labelStyle: GoogleFonts.cairo(
+                      color: AppStyle.textSmall(context),
+                    ),
+                    hintText: "مثلاً: 3",
+                    border: InputBorder.none,
+                    prefixIcon: const Icon(Icons.repeat, color: Colors.grey),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                  ),
+                  onChanged: (val) {
+                    goalTarget = int.tryParse(val) ?? 1;
+                  },
+                ),
+              ),
             ],
 
             const SizedBox(height: 25),
-
-
-
 
             const SizedBox(height: 25),
             _buildSectionLabel("أيقونة"),
@@ -186,9 +198,6 @@ class _AddHabitPageState extends State<AddHabitPage> {
     );
   }
 
-  // ... (Other widgets like buildHabitChips, buildTitleField etc. can be copied or kept if using replacing strategy)
-  // I will assume I am replacing the FULL FILE CONTENT so I need to provide full implementations.
-  
   Widget buildHabitChips() {
     return SizedBox(
       height: 45,
@@ -206,6 +215,20 @@ class _AddHabitPageState extends State<AddHabitPage> {
                 selectedCommonHabit = habit;
                 _titleController.text = habit;
                 _descController.text = habitDescriptions[habit] ?? "";
+
+                // Auto-select icon
+                if (habit == "قراءة")
+                  selectedIcon = Icons.book;
+                else if (habit == "رياضة")
+                  selectedIcon = Icons.fitness_center;
+                else if (habit == "شرب الماء")
+                  selectedIcon = Icons.local_drink;
+                else if (habit == "تأمل")
+                  selectedIcon = Icons.self_improvement;
+                else if (habit == "نوم مبكر")
+                  selectedIcon = Icons.bed;
+                else if (habit == "فطور صحي")
+                  selectedIcon = Icons.restaurant;
               });
             },
             child: AnimatedContainer(
@@ -214,18 +237,28 @@ class _AddHabitPageState extends State<AddHabitPage> {
               decoration: BoxDecoration(
                 color: isSelected ? AppStyle.primary : AppStyle.cardBg(context),
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: isSelected 
-                  ? [BoxShadow(color: AppStyle.primary.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))] 
-                  : [],
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: AppStyle.primary.withOpacity(0.4),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : [],
                 border: Border.all(
-                  color: isSelected ? Colors.transparent : Colors.grey.withOpacity(0.2),
+                  color: isSelected
+                      ? Colors.transparent
+                      : Colors.grey.withOpacity(0.2),
                 ),
               ),
               child: Center(
                 child: Text(
                   habit,
                   style: GoogleFonts.cairo(
-                    color: isSelected ? Colors.white : AppStyle.textMain(context),
+                    color: isSelected
+                        ? Colors.white
+                        : AppStyle.textMain(context),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -243,7 +276,11 @@ class _AddHabitPageState extends State<AddHabitPage> {
         color: AppStyle.cardBg(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-           BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: TextField(
@@ -254,7 +291,10 @@ class _AddHabitPageState extends State<AddHabitPage> {
           hintText: "اسم العادة (مثلاً: قراءة)",
           hintStyle: GoogleFonts.cairo(color: AppStyle.textSmall(context)),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
         ),
       ),
     );
@@ -266,7 +306,11 @@ class _AddHabitPageState extends State<AddHabitPage> {
         color: AppStyle.cardBg(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-           BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: TextField(
@@ -278,7 +322,10 @@ class _AddHabitPageState extends State<AddHabitPage> {
           hintText: "وصف بسيط...",
           hintStyle: GoogleFonts.cairo(color: AppStyle.textSmall(context)),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
         ),
       ),
     );
@@ -298,13 +345,18 @@ class _AddHabitPageState extends State<AddHabitPage> {
           return Expanded(
             child: GestureDetector(
               onTap: () {
-                 setState(() {
-                   selectedFrequency = opt;
-                   // Reset goal target based on selection default
-                   if (opt == "يومي") goalTarget = 7;
-                   else if (opt == "أسبوعي") goalTarget = (int.tryParse(_weeklyTargetController.text) ?? 3); // Default 3 if switching
-                   else if (opt == "شهري") goalTarget = 1;
-                 });
+                setState(() {
+                  selectedFrequency = opt;
+                  // Reset goal target based on selection default
+                  if (opt == "يومي")
+                    goalTarget = 7;
+                  else if (opt == "أسبوعي")
+                    goalTarget =
+                        (int.tryParse(_weeklyTargetController.text) ??
+                        3); // Default 3 if switching
+                  else if (opt == "شهري")
+                    goalTarget = 1;
+                });
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -317,7 +369,9 @@ class _AddHabitPageState extends State<AddHabitPage> {
                 child: Text(
                   opt,
                   style: GoogleFonts.cairo(
-                    color: isSelected ? Colors.white : AppStyle.textMain(context),
+                    color: isSelected
+                        ? Colors.white
+                        : AppStyle.textMain(context),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -329,13 +383,9 @@ class _AddHabitPageState extends State<AddHabitPage> {
     );
   }
 
-
-
-
-
   Widget buildIconsGrid() {
     return Container(
-      height: 200, 
+      height: 200,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppStyle.cardBg(context),
@@ -357,16 +407,22 @@ class _AddHabitPageState extends State<AddHabitPage> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               decoration: BoxDecoration(
-                color: isSelected ? AppStyle.primary.withOpacity(0.2) : Colors.transparent,
+                color: isSelected
+                    ? AppStyle.primary.withOpacity(0.2)
+                    : Colors.transparent,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? AppStyle.primary : Colors.grey.withOpacity(0.2),
+                  color: isSelected
+                      ? AppStyle.primary
+                      : Colors.grey.withOpacity(0.2),
                   width: 2,
                 ),
               ),
               child: Icon(
                 icon,
-                color: isSelected ? AppStyle.primary : AppStyle.textMain(context),
+                color: isSelected
+                    ? AppStyle.primary
+                    : AppStyle.textMain(context),
                 size: 24,
               ),
             ),
@@ -435,8 +491,14 @@ class _AddHabitPageState extends State<AddHabitPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("حذف العادة", style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
-        content: Text("هل أنت متأكد من حذف هذه العادة؟", style: GoogleFonts.cairo()),
+        title: Text(
+          "حذف العادة",
+          style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          "هل أنت متأكد من حذف هذه العادة؟",
+          style: GoogleFonts.cairo(),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -445,7 +507,10 @@ class _AddHabitPageState extends State<AddHabitPage> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text("حذف", style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
+            child: Text(
+              "حذف",
+              style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -456,7 +521,7 @@ class _AddHabitPageState extends State<AddHabitPage> {
     try {
       final supabase = Supabase.instance.client;
       final id = widget.habit!['original_id'] ?? widget.habit!['id'];
-      
+
       // Handle potention "habit_" prefix if passed from home
       String realId = id.toString();
       if (realId.startsWith('habit_')) {
@@ -464,22 +529,22 @@ class _AddHabitPageState extends State<AddHabitPage> {
       }
 
       await supabase.from('habits').delete().eq('id', realId);
-      
+
       if (!mounted) return;
       Navigator.pop(context, true); // Return true to refresh
     } catch (e) {
       debugPrint("Error deleting habit: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("خطأ في الحذف: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("خطأ في الحذف: $e")));
     }
   }
 
   Future<void> _saveHabit() async {
     if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("الرجاء كتابة اسم العادة")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("الرجاء كتابة اسم العادة")));
       return;
     }
 
@@ -487,9 +552,16 @@ class _AddHabitPageState extends State<AddHabitPage> {
     final user = supabase.auth.currentUser;
     if (user == null) return;
 
-    // Final logic for goal
-    if (selectedFrequency == 'يومي') goalTarget = 7;
-    else if (selectedFrequency == 'شهري') goalTarget = 1;
+    // Calculate goal based on frequency selection
+    if (selectedFrequency == 'يومي') {
+      goalTarget = 7; // 7 times per week (daily)
+    } else if (selectedFrequency == 'أسبوعي') {
+      goalTarget =
+          int.tryParse(_weeklyTargetController.text) ??
+          3; // User-defined weekly target
+    } else if (selectedFrequency == 'شهري') {
+      goalTarget = 1; // Once per month
+    }
 
     try {
       final Map<String, dynamic> data = {
@@ -497,38 +569,35 @@ class _AddHabitPageState extends State<AddHabitPage> {
         "title": _titleController.text.trim(),
         "description": _descController.text.trim(),
         "icon_name": selectedIcon.codePoint.toString(),
-        // "color": selectedColor, // Column missing or not used
-        // "priority": selectedPriority, // Removed from UI
         "frequency": selectedFrequency,
-        // "goal_target": goalTarget, // Column missing in DB
-        // "updated_at": DateTime.now().toIso8601String(), // Column missing in DB
+        "Goal": goalTarget, // Save goal to database
       };
 
       if (widget.habit != null) {
-          // Update
-          final id = widget.habit!['original_id'] ?? widget.habit!['id'];
-          // Handle potention "habit_" prefix if passed from home or elsewhere
-          String realId = id.toString();
-          if (realId.startsWith('habit_')) {
-             realId = realId.replaceAll('habit_', '');
-          }
+        // Update
+        final id = widget.habit!['original_id'] ?? widget.habit!['id'];
+        // Handle potention "habit_" prefix if passed from home or elsewhere
+        String realId = id.toString();
+        if (realId.startsWith('habit_')) {
+          realId = realId.replaceAll('habit_', '');
+        }
 
-          await supabase.from('habits').update(data).eq('id', realId);
-          if (!mounted) return;
-          Navigator.pop(context, true); // Return true to signal refresh needed
+        await supabase.from('habits').update(data).eq('id', realId);
+        if (!mounted) return;
+        Navigator.pop(context, true); // Return true to signal refresh needed
       } else {
-          // Insert
-          data["completion_count"] = 0;
-          data["created_at"] = DateTime.now().toIso8601String();
-          await supabase.from('habits').insert(data);
-          if (!mounted) return;
-          Navigator.pop(context, true);
+        // Insert
+        data["completion_count"] = 0;
+        data["created_at"] = DateTime.now().toIso8601String();
+        await supabase.from('habits').insert(data);
+        if (!mounted) return;
+        Navigator.pop(context, true);
       }
     } catch (e) {
       debugPrint("Error saving habit: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("خطأ: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("خطأ: $e")));
     }
   }
 }
