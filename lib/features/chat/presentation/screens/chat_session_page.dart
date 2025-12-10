@@ -68,14 +68,15 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
   }
 
   String _getUserId() {
-    String userId = "2f54534a-4fb0-493e-a514-c1ac08071f4d"; 
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) userId = user.id;
+      if (user != null) return user.id.trim();
     } catch (e) {
       debugPrint("Supabase auth fetch failed: $e");
     }
-    return userId.trim();
+    // If no user is logged in, return empty or handle explicitly. 
+    // Returning a hardcoded ID causes DB crashes if that ID doesn't exist in Auth.
+    return ""; 
   }
 
   void _startThinking() {
@@ -131,6 +132,10 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
   Future<void> _initSession() async {
     _startThinking();
     final userId = _getUserId();
+    if (userId.isEmpty) {
+       _stopThinkingAndShowAi("يرجى تسجيل الدخول أولاً للبدء في المحادثة.");
+       return;
+    }
     
     try {
       final startUri = Uri.parse(_apiUrl.replaceFirst('/chat', '/start-session'));
@@ -145,7 +150,7 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
         startUri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
@@ -366,6 +371,10 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     });
     _startThinking();
     final userId = _getUserId();
+    if (userId.isEmpty) {
+       _stopThinkingAndShowAi("يرجى تسجيل الدخول للمتابعة.");
+       return;
+    }
 
     try {
       final response = await http.post(
