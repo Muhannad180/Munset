@@ -13,7 +13,7 @@ class ChatSessionPage extends StatefulWidget {
   final String sessionTitle;
   final String sessionId;
   // أزلنا sessionNumber إذا لم يكن مستخدماً في الباك إند حالياً أو جعله اختيارياً
-  final int? sessionNumber; 
+  final int? sessionNumber;
   final bool isCompleted;
 
   const ChatSessionPage({
@@ -30,7 +30,7 @@ class ChatSessionPage extends StatefulWidget {
 
 class _ChatSessionPageState extends State<ChatSessionPage> {
   dynamic _sessionId;
-  
+
   // ألوان الثيم
   final Color primaryColor = const Color(0xFF5E9E92);
   final Color bgColor = const Color(0xFFF8F9FA);
@@ -46,7 +46,11 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
 
   List<ChatMessage> messages = [];
   ChatUser currentUser = ChatUser(id: '0', firstName: 'أنا');
-  ChatUser aiUser = ChatUser(id: '1', firstName: 'منصت', profileImage: "assets/images/ai_avatar.png"); // يمكنك وضع صورة للأفاتار هنا
+  ChatUser aiUser = ChatUser(
+    id: '1',
+    firstName: 'منصت',
+    profileImage: "assets/images/ai_avatar.png",
+  ); // يمكنك وضع صورة للأفاتار هنا
 
   bool _isAwaitingResponse = false;
   Timer? _thinkingTimer;
@@ -68,14 +72,15 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
   }
 
   String _getUserId() {
-    String userId = "2f54534a-4fb0-493e-a514-c1ac08071f4d"; 
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) userId = user.id;
+      if (user != null) return user.id.trim();
     } catch (e) {
       debugPrint("Supabase auth fetch failed: $e");
     }
-    return userId.trim();
+    // If no user is logged in, return empty or handle explicitly.
+    // Returning a hardcoded ID causes DB crashes if that ID doesn't exist in Auth.
+    return "";
   }
 
   void _startThinking() {
@@ -131,45 +136,52 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
   Future<void> _initSession() async {
     _startThinking();
     final userId = _getUserId();
-    
-    try {
-      final startUri = Uri.parse(_apiUrl.replaceFirst('/chat', '/start-session'));
-      final sNum = widget.sessionNumber ?? 1;
-      
-      final body = {
-        'user_id': userId,
-        'session_number': sNum, 
-      };
+    if (userId.isEmpty) {
+      _stopThinkingAndShowAi("يرجى تسجيل الدخول أولاً للبدء في المحادثة.");
+      return;
+    }
 
-      final resp = await http.post(
-        startUri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 30));
+    try {
+      final startUri = Uri.parse(
+        _apiUrl.replaceFirst('/chat', '/start-session'),
+      );
+      final sNum = widget.sessionNumber ?? 1;
+
+      final body = {'user_id': userId, 'session_number': sNum};
+
+      final resp = await http
+          .post(
+            startUri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 60));
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
         final opening = data['opening_message'] ?? data['openingMessage'] ?? '';
         final sid = data['session_id'] ?? data['sessionId'];
-        
+
         if (sid != null) {
-             _sessionId = sid.toString(); 
+          _sessionId = sid.toString();
         }
-        
+
         // Fetch History
         await _loadHistory(_sessionId.toString());
 
         // If no messages loaded (new session), show opening
         if (messages.isEmpty && opening.isNotEmpty) {
-           _stopThinkingAndShowAi(opening);
+          _stopThinkingAndShowAi(opening);
         } else {
           // If messages loaded, just stop thinking indicator
-           _thinkingTimer?.cancel();
-           _thinkingTimer = null;
-           _isAwaitingResponse = false;
-           if(mounted) setState(() { _thinkingMessage = null; });
+          _thinkingTimer?.cancel();
+          _thinkingTimer = null;
+          _isAwaitingResponse = false;
+          if (mounted)
+            setState(() {
+              _thinkingMessage = null;
+            });
         }
-        
       } else {
         _stopThinkingAndShowAi("Error: ${resp.statusCode} - ${resp.body}");
       }
@@ -182,38 +194,47 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     try {
       // If session is NOT completed (Active), filter by last 24 hours
       // If session IS completed, fetch all history
-      String url = _apiUrl.replaceFirst('/chat', '/session-history?session_id=$sessionId');
+      String url = _apiUrl.replaceFirst(
+        '/chat',
+        '/session-history?session_id=$sessionId',
+      );
       if (!widget.isCompleted) {
         url += '&hours=24';
       }
-      
+
       final historyUri = Uri.parse(url);
       final resp = await http.get(historyUri);
-      
+
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
         final history = data['history'] as List<dynamic>;
-        
+
         final List<ChatMessage> loaded = [];
-        
+
         for (var item in history) {
-           final content = item['message'] != null ? item['message']['content'] : '';
-           if (content == null || content.isEmpty) continue;
-           
-           final sender = item['sender'];
-           final isUser = sender == 'user';
-           
-           loaded.add(ChatMessage(
-             user: isUser ? currentUser : aiUser, 
-             text: content,
-             createdAt: DateTime.parse(item['created_at'] ?? DateTime.now().toIso8601String()),
-           ));
+          final content = item['message'] != null
+              ? item['message']['content']
+              : '';
+          if (content == null || content.isEmpty) continue;
+
+          final sender = item['sender'];
+          final isUser = sender == 'user';
+
+          loaded.add(
+            ChatMessage(
+              user: isUser ? currentUser : aiUser,
+              text: content,
+              createdAt: DateTime.parse(
+                item['created_at'] ?? DateTime.now().toIso8601String(),
+              ),
+            ),
+          );
         }
-        
+
         if (mounted) {
-           setState(() {
-             messages = loaded.reversed.toList();
-           });
+          setState(() {
+            messages = loaded.reversed.toList();
+          });
         }
       }
     } catch (e) {
@@ -228,32 +249,58 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: Text("إنهاء الجلسة", style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: Text(
+            "إنهاء الجلسة",
+            style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("هل تريد بالفعل الخروج ؟", style: GoogleFonts.cairo(fontSize: 16)),
+              Text(
+                "هل تريد بالفعل الخروج ؟",
+                style: GoogleFonts.cairo(fontSize: 16),
+              ),
               const SizedBox(height: 10),
               Text(
-                "ملاحظة: سيتم فقدان جميع التقدم في هذه الجلسة.", 
-                style: GoogleFonts.cairo(color: Colors.red, fontSize: 13, fontWeight: FontWeight.bold),
+                "ملاحظة: سيتم فقدان جميع التقدم في هذه الجلسة.",
+                style: GoogleFonts.cairo(
+                  color: Colors.red,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text("إلغاء", style: GoogleFonts.cairo(color: Colors.grey)),
+              child: Text(
+                "إلغاء",
+                style: GoogleFonts.cairo(color: Colors.grey),
+              ),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(ctx); 
-                Navigator.pop(context); 
+                Navigator.pop(ctx);
+                Navigator.pop(context);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-              child: Text("تأكيد الخروج", style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text(
+                "تأكيد الخروج",
+                style: GoogleFonts.cairo(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
@@ -272,7 +319,11 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
           backgroundColor: AppStyle.bgTop(context),
           title: Text(
             widget.sessionTitle,
-            style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 18, color: AppStyle.textMain(context)),
+            style: GoogleFonts.cairo(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: AppStyle.textMain(context),
+            ),
           ),
           centerTitle: true,
           elevation: 0,
@@ -285,28 +336,43 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
           decoration: BoxDecoration(gradient: AppStyle.mainGradient(context)),
           child: Column(
             children: [
-               if (widget.isCompleted)
+              if (widget.isCompleted)
                 Container(
                   width: double.infinity,
                   color: isDark ? Colors.grey[800] : Colors.grey[300],
                   padding: const EdgeInsets.all(8),
-                  child: Text("هذه الجلسة منتهية (للقراءة فقط)", style: GoogleFonts.cairo(color: AppStyle.textSmall(context)), textAlign: TextAlign.center),
+                  child: Text(
+                    "هذه الجلسة منتهية (للقراءة فقط)",
+                    style: GoogleFonts.cairo(
+                      color: AppStyle.textSmall(context),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-               Expanded(
-                 child: DashChat(
+              Expanded(
+                child: DashChat(
                   currentUser: currentUser,
                   onSend: _sendMessage,
                   messages: messages,
-                  readOnly: widget.isCompleted, 
+                  readOnly: widget.isCompleted,
                   inputOptions: InputOptions(
                     inputDisabled: _isAwaitingResponse || widget.isCompleted,
-                    inputTextStyle: GoogleFonts.cairo(color: AppStyle.textMain(context)),
+                    inputTextStyle: GoogleFonts.cairo(
+                      color: AppStyle.textMain(context),
+                    ),
                     inputDecoration: InputDecoration(
-                      hintText: widget.isCompleted ? "الجلسة مغلقة" : "اكتب رسالتك هنا...",
-                      hintStyle: GoogleFonts.cairo(color: AppStyle.textSmall(context)),
+                      hintText: widget.isCompleted
+                          ? "الجلسة مغلقة"
+                          : "اكتب رسالتك هنا...",
+                      hintStyle: GoogleFonts.cairo(
+                        color: AppStyle.textSmall(context),
+                      ),
                       filled: true,
                       fillColor: AppStyle.cardBg(context),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(25),
                         borderSide: BorderSide.none,
@@ -315,7 +381,11 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
                     sendButtonBuilder: (onSend) {
                       if (widget.isCompleted) return const SizedBox.shrink();
                       return IconButton(
-                        icon: const Icon(Icons.send_rounded, color: AppStyle.primary, size: 30),
+                        icon: const Icon(
+                          Icons.send_rounded,
+                          color: AppStyle.primary,
+                          size: 30,
+                        ),
                         onPressed: onSend,
                       );
                     },
@@ -325,14 +395,18 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
                     showCurrentUserAvatar: false,
                     avatarBuilder: (user, onPress, onLongPress) {
                       if (user.id == aiUser.id) {
-                         return Container(
-                           padding: const EdgeInsets.all(8),
-                           decoration: const BoxDecoration(
-                             color: AppStyle.primary,
-                             shape: BoxShape.circle,
-                           ),
-                           child: const Icon(Icons.psychology, color: Colors.white, size: 20),
-                         );
+                        return Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: AppStyle.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.psychology,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        );
                       }
                       return const SizedBox();
                     },
@@ -340,19 +414,22 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
                     currentUserTextColor: Colors.white,
                     containerColor: AppStyle.cardBg(context),
                     textColor: AppStyle.textMain(context),
-                    messageTextBuilder: (message, previousMessage, nextMessage) {
-                      return Text(
-                        message.text,
-                        style: GoogleFonts.cairo(
-                          color: message.user.id == currentUser.id ? Colors.white : AppStyle.textMain(context),
-                          fontSize: 16,
-                          height: 1.4,
-                        ),
-                      );
-                    },
+                    messageTextBuilder:
+                        (message, previousMessage, nextMessage) {
+                          return Text(
+                            message.text,
+                            style: GoogleFonts.cairo(
+                              color: message.user.id == currentUser.id
+                                  ? Colors.white
+                                  : AppStyle.textMain(context),
+                              fontSize: 16,
+                              height: 1.4,
+                            ),
+                          );
+                        },
                   ),
-                 ),
-               ),
+                ),
+              ),
             ],
           ),
         ),
@@ -366,17 +443,25 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     });
     _startThinking();
     final userId = _getUserId();
+    if (userId.isEmpty) {
+      _stopThinkingAndShowAi("يرجى تسجيل الدخول للمتابعة.");
+      return;
+    }
 
     try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': userId,
-          'session_id': _sessionId ?? (widget.sessionId.isEmpty ? null : widget.sessionId),
-          'message': chatMessage.text,
-        }),
-      ).timeout(const Duration(seconds: 60));
+      final response = await http
+          .post(
+            Uri.parse(_apiUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'user_id': userId,
+              'session_id':
+                  _sessionId ??
+                  (widget.sessionId.isEmpty ? null : widget.sessionId),
+              'message': chatMessage.text,
+            }),
+          )
+          .timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

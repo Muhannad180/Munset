@@ -21,12 +21,18 @@ class HomeHeader extends StatelessWidget {
           // Dark Mode Toggle
           IconButton(
             icon: Icon(
-              AppStyle.isDark(context) ? Icons.wb_sunny_rounded : Icons.nightlight_round,
+              AppStyle.isDark(context)
+                  ? Icons.wb_sunny_rounded
+                  : Icons.nightlight_round,
               color: AppStyle.textMain(context),
             ),
             onPressed: onThemeToggle,
           ),
-          Icon(Icons.notifications_none_rounded, size: 28, color: AppStyle.textMain(context)),
+          Icon(
+            Icons.notifications_none_rounded,
+            size: 28,
+            color: AppStyle.textMain(context),
+          ),
           const Spacer(),
           Text('مساء الخير، $firstName', style: AppStyle.heading(context)),
         ],

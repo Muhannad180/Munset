@@ -74,15 +74,18 @@ class _WelcomePageState extends State<WelcomePage>
                   // Logo
                   Hero(
                     tag: 'app_logo',
-                    child: SizedBox(
-                      height: 180,
-                      child: Image.asset(
-                        'assets/images/munset_logo.png',
-                        fit: BoxFit.contain,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 20.0),
+                      child: SizedBox(
+                        width: 300,
+                        child: Image.asset(
+                          'assets/images/munset_logo.png',
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 50),
+                  const SizedBox(height: 100),
 
                   // Title
                   Text(

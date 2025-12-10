@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:test1/features/assessment/presentation/screens/start_screen.dart';
 import 'package:test1/features/auth/presentation/screens/signup_screen.dart';
 import 'package:test1/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:test1/shared/navigation/main_navigation.dart';
