@@ -37,8 +37,8 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
 
   static const String _apiUrl = String.fromEnvironment(
     'API_URL',
-    // defaultValue: 'https://munset-backend.onrender.com/chat', // Render
-    defaultValue: 'http://127.0.0.1:10000/chat', // Localhost
+    defaultValue: 'https://munset-backend.onrender.com/chat', // Render
+    // defaultValue: 'http://127.0.0.1:10000/chat', // Localhost
   );
 
   static const String _defaultGreeting = "أهلاً! كيف يمكنني مساعدتك اليوم؟";

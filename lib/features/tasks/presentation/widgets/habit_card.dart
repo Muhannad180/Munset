@@ -23,7 +23,7 @@ class _HabitCardState extends State<HabitCard> {
     setState(() => _isLoadingAdvice = true);
 
     try {
-      final url = Uri.parse('http://127.0.0.1:10000/habit-advice');
+      final url = Uri.parse('https://munset-backend.onrender.com/habit-advice');
 
       final response = await http.post(
         url,
