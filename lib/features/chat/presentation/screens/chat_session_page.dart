@@ -53,6 +53,7 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
   ); // يمكنك وضع صورة للأفاتار هنا
 
   bool _isAwaitingResponse = false;
+  bool _isSessionEnded = false;
   Timer? _thinkingTimer;
   ChatMessage? _thinkingMessage;
   int _thinkingDotCount = 1;
@@ -356,7 +357,10 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
                   messages: messages,
                   readOnly: widget.isCompleted,
                   inputOptions: InputOptions(
-                    inputDisabled: _isAwaitingResponse || widget.isCompleted,
+                    inputDisabled:
+                        _isAwaitingResponse ||
+                        widget.isCompleted ||
+                        _isSessionEnded,
                     inputTextStyle: GoogleFonts.cairo(
                       color: AppStyle.textMain(context),
                     ),
@@ -466,6 +470,13 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final reply = data['reply'] ?? "لا يوجد رد.";
+        final nextPhase = data['next_phase'];
+        if (nextPhase == 'END') {
+          setState(() {
+            _isSessionEnded = true;
+          });
+        }
+
         if (_sessionId == null && data['session_id'] != null) {
           _sessionId = data['session_id'];
         }
