@@ -14,12 +14,16 @@ class AuthService {
     );
   }
 
-  // إنشاء حساب
+  // إنشاء حساب (بدون تحقق من البريد الإلكتروني)
   Future<AuthResponse> signUpWithEmailPassword(
     String email,
     String password,
   ) async {
-    return await supabase.auth.signUp(email: email, password: password);
+    return await supabase.auth.signUp(
+      email: email,
+      password: password,
+      emailRedirectTo: null, // تعطيل التحقق من البريد الإلكتروني
+    );
   }
 
   // حفظ بيانات المستخدم في جدول user

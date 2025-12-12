@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/features/auth/presentation/screens/signin_screen.dart';
-import 'package:test1/features/auth/presentation/screens/email_verification_screen.dart';
 import 'package:test1/data/services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -66,33 +65,32 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
 
       if (res.user != null) {
-        // Store user data temporarily to be inserted after verification
-        final userData = {
-          "id": res.user!.id,
-          "first_name": firstNameController.text.trim(),
-          "last_name": lastNameController.text.trim(),
-          "username": usernameController.text.trim(),
-          "age": int.parse(selectedAge!),
-          "gender": selectedGender!,
-          "email": emailController.text.trim(),
-        };
+        // Wait a bit for the trigger to create the base user record
+        await Future.delayed(const Duration(milliseconds: 1000));
 
-        // Insert user data immediately (Supabase will handle email confirmation)
-        await supabase.from('users').insert(userData);
+        // Update user profile with additional fields (trigger already created the record)
+        await supabase
+            .from('users')
+            .update({
+              "first_name": firstNameController.text.trim(),
+              "last_name": lastNameController.text.trim(),
+              "username": usernameController.text.trim(),
+              "age": int.parse(selectedAge!),
+              "gender": selectedGender!,
+            })
+            .eq('id', res.user!.id);
 
         if (mounted) {
-          _showMsg("تم إرسال رمز التحقق إلى بريدك الإلكتروني", Colors.green);
+          _showMsg("تم إنشاء الحساب بنجاح! يرجى تسجيل الدخول", Colors.green);
+          // الانتقال إلى صفحة تسجيل الدخول
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  EmailVerificationScreen(email: emailController.text.trim()),
-            ),
+            MaterialPageRoute(builder: (_) => const SignInScreen()),
           );
         }
       }
-    } catch (e) {
-      _showMsg("حدث خطأ أثناء التسجيل: ${e.toString()}", Colors.red);
+    } catch (e, s) {
+      _showMsg("حدث خطأ أثناء التسجيل", Colors.red);
     }
   }
 
