@@ -66,19 +66,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
 
       if (res.user != null) {
-        // Store user data temporarily to be inserted after verification
-        final userData = {
-          "id": res.user!.id,
-          "first_name": firstNameController.text.trim(),
-          "last_name": lastNameController.text.trim(),
-          "username": usernameController.text.trim(),
-          "age": int.parse(selectedAge!),
-          "gender": selectedGender!,
-          "email": emailController.text.trim(),
-        };
+        // Wait a bit for the trigger to create the base user record
+        await Future.delayed(const Duration(milliseconds: 500));
 
-        // Insert user data immediately (Supabase will handle email confirmation)
-        await supabase.from('users').insert(userData);
+        // Update user profile with additional fields (trigger already created the record)
+        await supabase
+            .from('users')
+            .update({
+              "first_name": firstNameController.text.trim(),
+              "last_name": lastNameController.text.trim(),
+              "username": usernameController.text.trim(),
+              "age": int.parse(selectedAge!),
+              "gender": selectedGender!,
+            })
+            .eq('id', res.user!.id);
 
         if (mounted) {
           _showMsg("تم إرسال رمز التحقق إلى بريدك الإلكتروني", Colors.green);
