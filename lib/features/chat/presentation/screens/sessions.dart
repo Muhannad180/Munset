@@ -95,40 +95,42 @@ class _SessionsState extends State<Sessions> {
                 ],
               ),
             ),
-            FutureBuilder<List<Map<String, dynamic>>>(
-              future: _sessionsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+            Expanded(
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: _sessionsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        'Error: ${snapshot.error}',
-                        textAlign: TextAlign.center,
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          'Error: ${snapshot.error}',
+                          textAlign: TextAlign.center,
+                        ),
                       ),
+                    );
+                  }
+
+                  final sessions = snapshot.data ?? [];
+
+                  return SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 16),
+                        for (int i = 1; i <= 8; i++) ...[
+                          _buildSessionCardForNumber(context, i, sessions),
+                          const SizedBox(height: 16),
+                        ],
+                        const SizedBox(height: 96),
+                      ],
                     ),
                   );
-                }
-
-                final sessions = snapshot.data ?? [];
-
-                return SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 16),
-                      for (int i = 1; i <= 8; i++) ...[
-                        _buildSessionCardForNumber(context, i, sessions),
-                        const SizedBox(height: 16),
-                      ],
-                      const SizedBox(height: 96),
-                    ],
-                  ),
-                );
-              },
+                },
+              ),
             ),
           ],
         ),
@@ -297,11 +299,7 @@ Widget _buildSessionCard(
                         .withOpacity(isLocked ? 0.6 : 1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon ?? (isCompleted ? Icons.check : Icons.lock),
-                color: iconColor ?? Colors.white,
-                size: 26,
-              ),
+              child: Icon(icon!, color: iconColor ?? Colors.white, size: 26),
             ),
           ] else ...[
             // For "create new" show a more active icon
@@ -345,27 +343,6 @@ Widget _buildSessionCard(
                   ),
                   textAlign: TextAlign.right,
                 ),
-                const SizedBox(height: 8),
-                if (isCompleted) ...[
-                  Text(
-                    'الحالة: منتهية',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.right,
-                  ),
-                ] else if (isLocked) ...[
-                  Text(
-                    'الحالة: قادمة',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 12,
-                    ),
-                    textAlign: TextAlign.right,
-                  ),
-                ],
               ],
             ),
           ),
