@@ -10,6 +10,9 @@ import 'package:test1/features/tasks/presentation/widgets/task_tile.dart';
 import 'package:test1/features/tasks/presentation/widgets/habits_chart.dart';
 import 'dart:ui' as ui;
 
+import 'package:test1/features/assessment/presentation/screens/results.dart';
+import 'package:test1/features/assessment/presentation/screens/test_screen.dart';
+
 class TasksScreen extends StatefulWidget {
   final VoidCallback? onDataUpdated;
   final ValueNotifier<bool>?
@@ -40,7 +43,10 @@ class _TasksScreenState extends State<TasksScreen>
       vsync: this,
       duration: const Duration(milliseconds: 100),
     );
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 4,
+      vsync: this,
+    ); // Updated length to 4
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {}); // Rebuild to update background
@@ -210,6 +216,8 @@ class _TasksScreenState extends State<TasksScreen>
     }
   }
 
+  String _sortOption = 'default';
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -284,6 +292,7 @@ class _TasksScreenState extends State<TasksScreen>
                     Tab(text: "المهام"),
                     Tab(text: "العادات"),
                     Tab(text: "الإنجازات"),
+                    Tab(text: "PHQ-9"),
                   ],
                 ),
               ),
@@ -304,6 +313,7 @@ class _TasksScreenState extends State<TasksScreen>
                           _buildTasksList(),
                           _buildHabitsList(),
                           AchievementsView(tasks: tasks, habits: habits),
+                          _buildPhq9Tab(),
                         ],
                       ),
               ),
@@ -314,18 +324,30 @@ class _TasksScreenState extends State<TasksScreen>
     );
   }
 
-  String _sortOption = 'default';
+  Widget _buildPhq9Tab() {
+    return ResultsScreen(
+      showBackButton: false,
+      onRetakeTest: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => TestScreen()),
+        );
+        // Reload the tab after test completion
+        if (result != null || mounted) {
+          setState(() {});
+        }
+      },
+    );
+  }
 
   Widget _buildHabitsList() {
-    // 1. Sort the list
     List<Map<String, dynamic>> sortedHabits = List.from(habits);
     if (_sortOption == 'priority') {
-      // High -> Medium -> Low
       final priorityMap = {'عالية': 3, 'متوسطة': 2, 'منخفضة': 1, 'متوسط': 2};
       sortedHabits.sort((a, b) {
         int pA = priorityMap[a['priority'] ?? 'متوسط'] ?? 1;
         int pB = priorityMap[b['priority'] ?? 'متوسط'] ?? 1;
-        return pB.compareTo(pA); // Descending
+        return pB.compareTo(pA);
       });
     } else if (_sortOption == 'alpha') {
       sortedHabits.sort(
@@ -335,7 +357,6 @@ class _TasksScreenState extends State<TasksScreen>
 
     return Column(
       children: [
-        // Sort Bar
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Row(
@@ -349,45 +370,9 @@ class _TasksScreenState extends State<TasksScreen>
                   color: AppStyle.textMain(context),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: AppStyle.cardBg(context),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.grey.withOpacity(0.2)),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _sortOption,
-                    dropdownColor: AppStyle.cardBg(context),
-                    icon: Icon(
-                      Icons.sort,
-                      color: AppStyle.textSmall(context),
-                      size: 20,
-                    ),
-                    style: GoogleFonts.cairo(
-                      color: AppStyle.textMain(context),
-                      fontSize: 14,
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'default', child: Text("الأحدث")),
-                      DropdownMenuItem(
-                        value: 'priority',
-                        child: Text("الأولوية"),
-                      ),
-                      DropdownMenuItem(value: 'alpha', child: Text("أبجدي")),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => _sortOption = val);
-                    },
-                  ),
-                ),
-              ),
             ],
           ),
         ),
-
-        // List
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
@@ -413,7 +398,6 @@ class _TasksScreenState extends State<TasksScreen>
   Widget _buildAddHabitCard() {
     return GestureDetector(
       onTap: () {
-        // Animate button controller just for effect?
         _openAddHabitPage();
       },
       child: Container(
@@ -463,28 +447,6 @@ class _TasksScreenState extends State<TasksScreen>
   }
 
   Widget _buildTasksList() {
-    // Reusing the weekly logic but with TaskTile
-    List<Widget> weekWidgets = [];
-
-    // Week logic - simplified to just show relevant info cleanly
-    for (int i = 1; i <= 8; i++) {
-      DateTime weekStart = startDate.add(Duration(days: (i - 1) * 7));
-      DateTime weekEnd = weekStart.add(const Duration(days: 7));
-      bool isAvailable = DateTime.now().isAfter(weekStart);
-      // bool isExpired = DateTime.now().isAfter(weekEnd);
-
-      // Filter tasks? The previous logic just dumped ALL tasks into every week which was weird,
-      // or wait, `tasks.map` was done inside. If tasks aren't date-filtered, then they duplicate?
-      // Looking at previous code...
-      // `...tasks.map` was inside the loop. YES, it duplicated 8 times!
-      // That seems like a bug in the previous code or a placeholder.
-      // I will fix this to just show ONE list of tasks for "Current Week" or just "All Tasks".
-      // The user asked for an overhaul, so fixing logic is valid.
-      // I'll assume they want a simple list of tasks for now.
-    }
-
-    // Since the previous code duplicated tasks for 8 weeks (likely a template),
-    // I will replace it with a proper single list of tasks.
     if (tasks.isEmpty) {
       return Center(
         child: Text(
