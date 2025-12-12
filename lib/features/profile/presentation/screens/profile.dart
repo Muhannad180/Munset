@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:test1/features/auth/presentation/screens/signin_screen.dart';
 import 'dart:ui' as ui;
 import 'package:test1/core/theme/app_style.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:image_picker/image_picker.dart'; // REQUIRED: For image picking
+import 'dart:io'; // REQUIRED: For File operations
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -24,15 +24,15 @@ class _ProfileState extends State<Profile> {
   final ageController = TextEditingController();
   final emailController = TextEditingController();
 
-  // Image Picker
-  final ImagePicker _picker = ImagePicker();
-  String? avatarUrl;
-
   // State
   String currentGender = 'ذكر';
   bool notificationEnabled = true;
   bool isLoading = true;
   String userId = '';
+
+  // Profile Picture State
+  String? profileImageUrl; // URL of the existing image from Supabase
+  File? _imageFile; // The locally picked image file
 
   // Theme Colors (Shortcuts)
   Color get primaryColor => AppStyle.primary;
@@ -65,7 +65,8 @@ class _ProfileState extends State<Profile> {
         setState(() {
           currentGender = response['gender'] ?? 'ذكر';
           notificationEnabled = response['notifications_enabled'] ?? true;
-          avatarUrl = response['avatar_url'] as String?;
+          profileImageUrl =
+              response['avatar_url'] as String?; // Load existing URL
         });
       }
     } catch (e) {
@@ -75,10 +76,83 @@ class _ProfileState extends State<Profile> {
     }
   }
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 75,
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = File(pickedFile.path); // Set the local file
+      });
+    }
+  }
+
+  Future<String?> _uploadAvatar() async {
+    if (_imageFile == null) {
+      return profileImageUrl;
+    }
+
+    try {
+      // Filename must be the user ID to match RLS policy
+      final fileExtension = _imageFile!.path.split('.').last;
+      final fileName = '$userId.$fileExtension';
+      final storagePath = fileName;
+
+      // Upsert: Overwrites old image with the same name (user ID)
+      await supabase.storage
+          .from('avatars')
+          .upload(
+            storagePath,
+            _imageFile!,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+          );
+
+      final publicUrl = supabase.storage
+          .from('avatars')
+          .getPublicUrl(storagePath);
+
+      return publicUrl;
+    } on StorageException catch (e) {
+      if (!mounted) return null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'خطأ في تحميل الصورة: ${e.message}',
+            style: GoogleFonts.cairo(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      debugPrint("Storage Error: ${e.message}");
+      return null;
+    } catch (e) {
+      if (!mounted) return null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'حدث خطأ غير متوقع أثناء تحميل الصورة',
+            style: GoogleFonts.cairo(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      debugPrint("Upload Error: $e");
+      return null;
+    }
+  }
+
   Future<void> _saveProfile() async {
     if (userId.isEmpty) return;
     try {
       setState(() => isLoading = true);
+
+      // Upload avatar and get new URL
+      final newAvatarUrl = await _uploadAvatar();
+
+      // Update user profile data
       await supabase.from('users').upsert({
         'id': userId,
         'first_name': firstNameController.text.trim(),
@@ -87,7 +161,9 @@ class _ProfileState extends State<Profile> {
         'age': int.tryParse(ageController.text.trim()),
         'gender': currentGender,
         'notifications_enabled': notificationEnabled,
+        'avatar_url': newAvatarUrl, // Save the URL
       });
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -95,6 +171,12 @@ class _ProfileState extends State<Profile> {
           backgroundColor: Colors.green,
         ),
       );
+
+      // Clear the local file and update the stored URL after successful save
+      setState(() {
+        _imageFile = null;
+        profileImageUrl = newAvatarUrl;
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -105,59 +187,6 @@ class _ProfileState extends State<Profile> {
       );
     } finally {
       _loadUserData();
-    }
-  }
-
-  Future<void> _pickAndUploadImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-      if (image == null) return;
-
-      setState(() => isLoading = true);
-
-      final file = File(image.path);
-      final fileExt = image.path.split('.').last;
-      final fileName =
-          '${userId}_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
-
-      // Upload to Supabase Storage
-      await supabase.storage.from('avatars').upload(fileName, file);
-
-      // Get Public URL
-      final imageUrl = supabase.storage.from('avatars').getPublicUrl(fileName);
-
-      // Update User Profile
-      await supabase
-          .from('users')
-          .update({'avatar_url': imageUrl})
-          .eq('id', userId);
-
-      setState(() {
-        avatarUrl = imageUrl;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تم تحديث الصورة بنجاح', style: GoogleFonts.cairo()),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'فشل في رفع الصورة. تأكد من إعدادات التخزين',
-              style: GoogleFonts.cairo(),
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      setState(() => isLoading = false);
     }
   }
 
@@ -273,7 +302,30 @@ class _ProfileState extends State<Profile> {
     );
   }
 
+  // --- MODIFIED _buildHeader FUNCTION with HitTestBehavior.opaque ---
   Widget _buildHeader(bool isDark) {
+    Widget avatarContent;
+
+    if (_imageFile != null) {
+      avatarContent = Image.file(_imageFile!, fit: BoxFit.cover);
+    } else if (profileImageUrl != null && profileImageUrl!.isNotEmpty) {
+      avatarContent = Image.network(
+        profileImageUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Icon(
+          Icons.person,
+          size: 70,
+          color: isDark ? Colors.white54 : Colors.grey,
+        ),
+      );
+    } else {
+      avatarContent = Icon(
+        Icons.person,
+        size: 70,
+        color: isDark ? Colors.white54 : Colors.grey,
+      );
+    }
+
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
@@ -309,41 +361,31 @@ class _ProfileState extends State<Profile> {
           child: Stack(
             alignment: Alignment.bottomRight,
             children: [
-              GestureDetector(
-                onTap: _pickAndUploadImage,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppStyle.bgTop(context),
-                    shape: BoxShape.circle,
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 10,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: CircleAvatar(
-                    radius: 60,
-                    backgroundColor: isDark
-                        ? const Color(0xFF333333)
-                        : Colors.grey[200],
-                    backgroundImage: avatarUrl != null
-                        ? NetworkImage(avatarUrl!)
-                        : null,
-                    child: avatarUrl == null
-                        ? Icon(
-                            Icons.person,
-                            size: 70,
-                            color: isDark ? Colors.white54 : Colors.grey,
-                          )
-                        : null,
-                  ),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppStyle.bgTop(context),
+                  shape: BoxShape.circle,
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 10,
+                      offset: Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: CircleAvatar(
+                  radius: 60,
+                  backgroundColor: isDark
+                      ? const Color(0xFF333333)
+                      : Colors.grey[200],
+                  child: ClipOval(child: avatarContent),
                 ),
               ),
               GestureDetector(
-                onTap: _pickAndUploadImage,
+                onTap: _pickImage,
+                behavior:
+                    HitTestBehavior.opaque, // <--- CRITICAL FIX FOR TAPPING
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
@@ -367,6 +409,7 @@ class _ProfileState extends State<Profile> {
       ],
     );
   }
+  // --- END OF MODIFIED _buildHeader FUNCTION ---
 
   Widget _buildSectionTitle(String title) {
     return Text(

@@ -8,6 +8,10 @@ import '../../features/profile/presentation/screens/profile.dart';
 import '../../features/tasks/presentation/screens/tasks.dart';
 
 class MainNavigation extends StatefulWidget {
+  const MainNavigation({super.key, this.score});
+
+  final int? score;
+
   @override
   _MainNavigationState createState() => _MainNavigationState();
 }

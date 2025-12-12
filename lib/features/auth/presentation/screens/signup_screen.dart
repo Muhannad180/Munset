@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/features/auth/presentation/screens/signin_screen.dart';
+import 'package:test1/features/auth/presentation/screens/email_verification_screen.dart';
 import 'package:test1/data/services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -63,8 +64,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
         emailController.text.trim(),
         passwordController.text,
       );
+
       if (res.user != null) {
-        await supabase.from('users').insert({
+        // Store user data temporarily to be inserted after verification
+        final userData = {
           "id": res.user!.id,
           "first_name": firstNameController.text.trim(),
           "last_name": lastNameController.text.trim(),
@@ -72,17 +75,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
           "age": int.parse(selectedAge!),
           "gender": selectedGender!,
           "email": emailController.text.trim(),
-        });
+        };
+
+        // Insert user data immediately (Supabase will handle email confirmation)
+        await supabase.from('users').insert(userData);
+
         if (mounted) {
-          _showMsg("تم إنشاء الحساب بنجاح", Colors.green);
+          _showMsg("تم إرسال رمز التحقق إلى بريدك الإلكتروني", Colors.green);
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const SignInScreen()),
+            MaterialPageRoute(
+              builder: (_) =>
+                  EmailVerificationScreen(email: emailController.text.trim()),
+            ),
           );
         }
       }
     } catch (e) {
-      _showMsg("حدث خطأ أثناء التسجيل", Colors.red);
+      _showMsg("حدث خطأ أثناء التسجيل: ${e.toString()}", Colors.red);
     }
   }
 

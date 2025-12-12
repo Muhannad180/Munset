@@ -79,12 +79,45 @@ class _SignInScreenState extends State<SignInScreen> {
     }
 
     try {
-      await authService.signInWithEmailPassword(emailToAuthenticate, password);
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => MainNavigation()),
+      final response = await authService.signInWithEmailPassword(
+        emailToAuthenticate,
+        password,
       );
+      final user = response.user;
+
+      if (user == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "حدث خطأ أثناء تسجيل الدخول",
+                style: GoogleFonts.cairo(),
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // التحقق من إتمام اختبار PHQ-9
+      final hasDoneTest = await authService.hasCompletedPhq9(user.id);
+
+      if (!mounted) return;
+
+      if (hasDoneTest) {
+        // المستخدم أنهى الاختبار
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MainNavigation()),
+        );
+      } else {
+        // أول مرة يدخل
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const StartScreen()),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
