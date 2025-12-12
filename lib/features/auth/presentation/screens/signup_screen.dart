@@ -66,7 +66,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       if (res.user != null) {
         // Wait a bit for the trigger to create the base user record
+<<<<<<< HEAD
         await Future.delayed(const Duration(milliseconds: 1000));
+=======
+        await Future.delayed(const Duration(milliseconds: 500));
+>>>>>>> 53e5ed6a413f7357d370a451f761969b4aca2fd6
 
         // Update user profile with additional fields (trigger already created the record)
         await supabase

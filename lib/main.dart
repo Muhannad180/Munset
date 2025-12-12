@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/features/onboarding/presentation/screens/welcome_page.dart';
 
@@ -7,7 +6,6 @@ final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Gemini.init(apiKey: 'AIzaSyAcPTCI5CX7ewXrCmyl35I-ptu4n6ixyjI');
   await Supabase.initialize(
     url: "https://xzdmzyjoczcovczvzvac.supabase.co",
     anonKey:
