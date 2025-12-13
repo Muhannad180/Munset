@@ -386,6 +386,7 @@ class _TasksScreenState extends State<TasksScreen>
                 child: HabitCard(
                   habit: habit,
                   onIncrement: () => _incrementHabitCount(habit),
+                  onEdit: () => _openAddHabitPage(habitToEdit: habit),
                 ),
               );
             },

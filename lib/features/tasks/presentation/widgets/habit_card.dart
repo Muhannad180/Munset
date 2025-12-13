@@ -7,8 +7,14 @@ import '../../../../core/theme/app_style.dart';
 class HabitCard extends StatefulWidget {
   final Map<String, dynamic> habit;
   final VoidCallback onIncrement;
+  final VoidCallback? onEdit;
 
-  const HabitCard({super.key, required this.habit, required this.onIncrement});
+  const HabitCard({
+    super.key,
+    required this.habit,
+    required this.onIncrement,
+    this.onEdit,
+  });
 
   @override
   State<HabitCard> createState() => _HabitCardState();
@@ -264,6 +270,14 @@ class _HabitCardState extends State<HabitCard> {
                     : const Icon(Icons.lightbulb, color: Colors.amber),
                 tooltip: "نصيحة ذكية",
               ),
+
+              // Edit Action
+              if (widget.onEdit != null)
+                IconButton(
+                  onPressed: widget.onEdit,
+                  icon: Icon(Icons.edit, color: AppStyle.primary),
+                  tooltip: "تعديل العادة",
+                ),
             ],
           ),
 

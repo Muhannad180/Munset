@@ -21,6 +21,9 @@ class _SessionsState extends State<Sessions> {
   void initState() {
     super.initState();
     _sessionsFuture = _fetchSessions();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showNoteDialog(context);
+    });
   }
 
   Future<List<Map<String, dynamic>>> _fetchSessions() async {
@@ -133,6 +136,198 @@ class _SessionsState extends State<Sessions> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showNoteDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          backgroundColor: Colors.white,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 20,
+                  horizontal: 16,
+                ),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF8FD3C7),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.campaign_outlined,
+                          size: 40,
+                          color: Colors.black87,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          "تنويه!",
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "لا تسيء فهم التطبيق",
+                      style: TextStyle(color: Colors.black, fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Left Side (Wrong Idea)
+                          Expanded(
+                            child: Column(
+                              children: [
+                                Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    const Icon(
+                                      Icons.lightbulb_outline,
+                                      size: 50,
+                                      color: Colors.orangeAccent,
+                                    ),
+                                    const Icon(
+                                      Icons.cancel,
+                                      color: Colors.red,
+                                      size: 24,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  "فكرة خاطئة",
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  "مٌنصت يشخص حالتي",
+                                  style: TextStyle(
+                                    color: Colors.redAccent,
+                                    fontSize: 12,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  "مُنصت بديل للطبيب النفسي",
+                                  style: TextStyle(
+                                    color: Colors.redAccent,
+                                    fontSize: 12,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Divider
+                          const VerticalDivider(
+                            width: 20,
+                            thickness: 1,
+                            color: Colors.grey,
+                          ),
+
+                          // Right Side (Right Idea)
+                          Expanded(
+                            child: Column(
+                              children: [
+                                Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    const Icon(
+                                      Icons.lightbulb,
+                                      size: 50,
+                                      color: Colors.orangeAccent,
+                                    ),
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.green,
+                                      size: 24,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  "الفكرة الصحيحة",
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  "مٌنصت لا يشخص حالتك",
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 12,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  "مٌنصت ليس طبيباً نفسياً، ولا يحل محل الطبيب النفسي.",
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 12,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      "مٌنصت هو تطبيق للدعم النفسي يتيح لك التحدث باريحيه مع ذكاء اصطناعي يمكنه المساعدة.",
+                      style: TextStyle(
+                        color: Color(0xFF00C853),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
