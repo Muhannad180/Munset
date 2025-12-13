@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:test1/features/auth/presentation/screens/signin_screen.dart';
-import 'package:test1/features/auth/presentation/screens/email_verification_screen.dart';
 import 'package:test1/data/services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -82,18 +81,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
             .eq('id', res.user!.id);
 
         if (mounted) {
-          _showMsg("تم إرسال رمز التحقق إلى بريدك الإلكتروني", Colors.green);
+          _showMsg("تم إنشاء الحساب بنجاح! يرجى تسجيل الدخول", Colors.green);
+          // الانتقال إلى صفحة تسجيل الدخول
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  EmailVerificationScreen(email: emailController.text.trim()),
-            ),
+            MaterialPageRoute(builder: (_) => const SignInScreen()),
           );
         }
       }
-    } catch (e) {
-      _showMsg("حدث خطأ أثناء التسجيل: ${e.toString()}", Colors.red);
+    } catch (e, s) {
+      _showMsg("حدث خطأ أثناء التسجيل", Colors.red);
     }
   }
 
