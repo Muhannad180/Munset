@@ -6,7 +6,6 @@ import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:ui' as ui;
 import 'package:google_fonts/google_fonts.dart';
-import 'package:test1/features/home/presentation/screens/home.dart';
 import 'package:test1/core/theme/app_style.dart';
 
 class ChatSessionPage extends StatefulWidget {
@@ -41,7 +40,6 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     // defaultValue: 'http://127.0.0.1:10000/chat', // Localhost
   );
 
-  static const String _defaultGreeting = "أهلاً! كيف يمكنني مساعدتك اليوم؟";
   static const String _thinkingText = "يكتب";
 
   List<ChatMessage> messages = [];
@@ -241,72 +239,6 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
     } catch (e) {
       debugPrint("History load error: $e");
     }
-  }
-
-  // 🚪 دالة الخروج (إنهاء الجلسة)
-  void _confirmExitSession() {
-    showDialog(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          title: Text(
-            "إنهاء الجلسة",
-            style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "هل تريد بالفعل الخروج ؟",
-                style: GoogleFonts.cairo(fontSize: 16),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                "ملاحظة: سيتم فقدان جميع التقدم في هذه الجلسة.",
-                style: GoogleFonts.cairo(
-                  color: Colors.red,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                "إلغاء",
-                style: GoogleFonts.cairo(color: Colors.grey),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(
-                "تأكيد الخروج",
-                style: GoogleFonts.cairo(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:test1/features/chat/presentation/screens/chat_session_page.dart';
-import 'dart:io';
-import 'package:test1/features/home/presentation/screens/home.dart';
 import 'package:test1/core/theme/app_style.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -33,8 +31,6 @@ class _SessionsState extends State<Sessions> {
         .select()
         .eq('user_id', user.id)
         .order('session_number');
-
-    if (data == null) return [];
 
     final list = data as List;
     return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();

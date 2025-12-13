@@ -7,7 +7,6 @@ import 'package:test1/features/tasks/presentation/screens/add_habit_screen.dart'
 import 'package:test1/features/tasks/presentation/widgets/achievements_view.dart';
 import 'package:test1/features/tasks/presentation/widgets/habit_card.dart';
 import 'package:test1/features/tasks/presentation/widgets/task_tile.dart';
-import 'package:test1/features/tasks/presentation/widgets/habits_chart.dart';
 import 'dart:ui' as ui;
 
 import 'package:test1/features/assessment/presentation/screens/results.dart';
