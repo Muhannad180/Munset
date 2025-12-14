@@ -108,7 +108,19 @@ class _TasksScreenState extends State<TasksScreen>
                   : (h['completion_count'] ?? 0),
             };
           }).toList();
-          tasks = List<Map<String, dynamic>>.from(tasksRes);
+          
+          // Deduplicate tasks by title to avoid showing duplicate tasks
+          final rawTasks = List<Map<String, dynamic>>.from(tasksRes);
+          final seenTitles = <String>{};
+          tasks = rawTasks.where((task) {
+            final title = (task['title'] ?? task['task'] ?? task['task_name'] ?? '').toString();
+            if (seenTitles.contains(title)) {
+              return false; // Skip duplicate
+            }
+            seenTitles.add(title);
+            return true;
+          }).toList();
+          
           isLoading = false;
         });
       }
@@ -449,28 +461,234 @@ class _TasksScreenState extends State<TasksScreen>
   Widget _buildTasksList() {
     if (tasks.isEmpty) {
       return Center(
-        child: Text(
-          "لا توجد مهام حالياً",
-          style: GoogleFonts.cairo(color: Colors.grey),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppStyle.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.assignment_outlined,
+                size: 48,
+                color: AppStyle.primary.withOpacity(0.5),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              "لا توجد مهام حالياً",
+              style: GoogleFonts.cairo(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppStyle.textSmall(context),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "ستظهر مهام الجلسات هنا بعد إكمال جلساتك",
+              style: GoogleFonts.cairo(
+                fontSize: 14,
+                color: AppStyle.textSmall(context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       );
     }
 
+    // Group tasks by completion status
+    final completedTasks = tasks.where((t) => t['is_completed'] == true).toList();
+    final pendingTasks = tasks.where((t) => t['is_completed'] != true).toList();
+
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      physics: const BouncingScrollPhysics(),
       children: [
-        Text(
-          "مهامك الحالية",
-          style: GoogleFonts.cairo(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppStyle.primary,
+        // Progress Summary Card
+        Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppStyle.primary.withOpacity(0.15),
+                AppStyle.primary.withOpacity(0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppStyle.primary.withOpacity(0.2),
+            ),
+          ),
+          child: Row(
+            children: [
+              // Progress Circle
+              SizedBox(
+                width: 60,
+                height: 60,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      value: tasks.isEmpty ? 0 : completedTasks.length / tasks.length,
+                      strokeWidth: 6,
+                      backgroundColor: AppStyle.isDark(context) 
+                          ? Colors.white10 
+                          : Colors.grey[200],
+                      valueColor: AlwaysStoppedAnimation<Color>(AppStyle.primary),
+                    ),
+                    Text(
+                      "${completedTasks.length}/${tasks.length}",
+                      style: GoogleFonts.cairo(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppStyle.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "تقدمك في المهام",
+                      style: GoogleFonts.cairo(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppStyle.textMain(context),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      completedTasks.isEmpty 
+                          ? "لم تبدأ بعد - ابدأ أول مهمة!"
+                          : completedTasks.length == tasks.length
+                              ? "🎉 أحسنت! أكملت جميع المهام"
+                              : "أكملت ${completedTasks.length} من ${tasks.length} مهام",
+                      style: GoogleFonts.cairo(
+                        fontSize: 13,
+                        color: AppStyle.textSmall(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 15),
-        ...tasks.map(
-          (t) => TaskTile(task: t, onToggle: () => _toggleTask(t, false)),
-        ),
+
+        // Pending Tasks Section
+        if (pendingTasks.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppStyle.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.pending_actions,
+                    color: AppStyle.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  "مهامك الحالية",
+                  style: GoogleFonts.cairo(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppStyle.primary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppStyle.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    "${pendingTasks.length}",
+                    style: GoogleFonts.cairo(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppStyle.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ...pendingTasks.map(
+            (t) => TaskTile(task: t, onToggle: () => _toggleTask(t, false)),
+          ),
+        ],
+
+        // Completed Tasks Section
+        if (completedTasks.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  "المهام المكتملة",
+                  style: GoogleFonts.cairo(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppStyle.textSmall(context),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    "${completedTasks.length}",
+                    style: GoogleFonts.cairo(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ...completedTasks.map(
+            (t) => TaskTile(task: t, onToggle: () => _toggleTask(t, false)),
+          ),
+        ],
+
+        const SizedBox(height: 80),
       ],
     );
   }

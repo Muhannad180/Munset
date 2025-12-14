@@ -44,6 +44,7 @@ class _MainNavigationState extends State<MainNavigation> {
       ),
       Sessions(),
       TasksScreen(
+        refreshNotifier: _refreshTasks,
         onDataUpdated: () {
           // Trigger refresh in Home
           _refreshHome.value = !_refreshHome.value;
@@ -141,6 +142,9 @@ class _MainNavigationState extends State<MainNavigation> {
         onTap: () {
           if (index == 0) {
             _refreshHome.value = !_refreshHome.value;
+          }
+          if (index == 3) {
+            _refreshTasks.value = !_refreshTasks.value;
           }
           setState(() {
             _currentIndex = index;

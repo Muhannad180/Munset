@@ -626,7 +626,7 @@ class HomePageState extends State<HomePage> {
   Future<String?> _callAdviceApi(String text) async {
     try {
       const String apiUrl =
-          'https://munset-backend.onrender.com/generate-advice';
+          'https://munset-backend.onrender.com/generate-advice'; // Render
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json'},
@@ -881,7 +881,7 @@ class HomePageState extends State<HomePage> {
     setState(() => loadingHabitAdvice[id] = true);
     try {
       // Using the same API call logic as HabitCard
-      const String apiUrl = 'https://munset-backend.onrender.com/habit-advice';
+      const String apiUrl = 'https://munset-backend.onrender.com/habit-advice'; // Render
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json'},

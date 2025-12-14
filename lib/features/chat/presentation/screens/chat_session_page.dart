@@ -36,8 +36,8 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
 
   static const String _apiUrl = String.fromEnvironment(
     'API_URL',
+    // defaultValue: 'https://munset-backend.onrender.com/chat', // Render
     defaultValue: 'https://munset-backend.onrender.com/chat', // Render
-    // defaultValue: 'http://127.0.0.1:10000/chat', // Localhost
   );
 
   static const String _thinkingText = "يكتب";
@@ -219,20 +219,36 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
           final sender = item['sender'];
           final isUser = sender == 'user';
 
+          // Parse created_at or use a default
+          DateTime createdAt;
+          try {
+            createdAt = DateTime.parse(
+              item['created_at'] ?? DateTime.now().toIso8601String(),
+            );
+          } catch (_) {
+            createdAt = DateTime.now();
+          }
+
           loaded.add(
             ChatMessage(
               user: isUser ? currentUser : aiUser,
               text: content,
-              createdAt: DateTime.parse(
-                item['created_at'] ?? DateTime.now().toIso8601String(),
-              ),
+              createdAt: createdAt,
             ),
           );
         }
 
+        // Sort by createdAt descending (newest first) for DashChat
+        loaded.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
         if (mounted) {
           setState(() {
-            messages = loaded.reversed.toList();
+            // Remove thinking message if it exists
+            if (_thinkingMessage != null) {
+              messages.remove(_thinkingMessage);
+              _thinkingMessage = null;
+            }
+            messages = loaded;
           });
         }
       }
