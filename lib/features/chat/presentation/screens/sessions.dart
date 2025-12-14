@@ -654,6 +654,7 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
     bool isCompleted,
   ) {
     if (isLocked) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -671,6 +672,7 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
     }
 
     if (isCompleted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
