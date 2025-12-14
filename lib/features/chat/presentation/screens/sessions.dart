@@ -28,7 +28,7 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showNoteDialog(context);
     });
@@ -90,24 +90,19 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                   )
                 else if (snapshot.hasError)
                   SliverFillRemaining(
-                    child: Center(
-                      child: Text('خطأ: ${snapshot.error}'),
-                    ),
+                    child: Center(child: Text('خطأ: ${snapshot.error}')),
                   )
                 else
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          return _buildSessionCardForNumber(
-                            context,
-                            index + 1,
-                            sessions,
-                          );
-                        },
-                        childCount: 8,
-                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        return _buildSessionCardForNumber(
+                          context,
+                          index + 1,
+                          sessions,
+                        );
+                      }, childCount: 8),
                     ),
                   ),
               ],
@@ -179,9 +174,13 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildProgressCard(BuildContext context, int completedCount, List<Map<String, dynamic>> sessions) {
+  Widget _buildProgressCard(
+    BuildContext context,
+    int completedCount,
+    List<Map<String, dynamic>> sessions,
+  ) {
     final progress = completedCount / 8;
-    
+
     return Container(
       margin: const EdgeInsets.all(20),
       padding: const EdgeInsets.all(20),
@@ -216,7 +215,9 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                         strokeWidth: 8,
                         backgroundColor: Colors.transparent,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          AppStyle.isDark(context) ? Colors.white10 : Colors.grey[200]!,
+                          AppStyle.isDark(context)
+                              ? Colors.white10
+                              : Colors.grey[200]!,
                         ),
                       ),
                     ),
@@ -228,13 +229,16 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                         tween: Tween(begin: 0, end: progress),
                         duration: const Duration(milliseconds: 1500),
                         curve: Curves.easeOutCubic,
-                        builder: (context, value, _) => CircularProgressIndicator(
-                          value: value,
-                          strokeWidth: 8,
-                          strokeCap: StrokeCap.round,
-                          backgroundColor: Colors.transparent,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppStyle.primary),
-                        ),
+                        builder: (context, value, _) =>
+                            CircularProgressIndicator(
+                              value: value,
+                              strokeWidth: 8,
+                              strokeCap: StrokeCap.round,
+                              backgroundColor: Colors.transparent,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppStyle.primary,
+                              ),
+                            ),
                       ),
                     ),
                     // Center text
@@ -262,7 +266,7 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(width: 20),
-              
+
               // Progress Text
               Expanded(
                 child: Column(
@@ -287,15 +291,18 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                     const SizedBox(height: 12),
                     // Progress dots
                     Row(
-                      children: List.generate(8, (i) => 
-                        Container(
-                          margin: const EdgeInsets.only(left: 6),
+                      children: List.generate(
+                        8,
+                        (i) => Container(
+                          margin: const EdgeInsets.only(left: 4),
                           width: 24,
                           height: 6,
                           decoration: BoxDecoration(
-                            color: i < completedCount 
-                                ? AppStyle.primary 
-                                : (AppStyle.isDark(context) ? Colors.white10 : Colors.grey[200]),
+                            color: i < completedCount
+                                ? AppStyle.primary
+                                : (AppStyle.isDark(context)
+                                      ? Colors.white10
+                                      : Colors.grey[200]),
                             borderRadius: BorderRadius.circular(3),
                           ),
                         ),
@@ -357,7 +364,8 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
     if (sessionNumber > 1) {
       if (prevRow == null) {
         unlocked = false;
-      } else if (prevRow['status'] != 'completed' || prevRow['ended_at'] == null) {
+      } else if (prevRow['status'] != 'completed' ||
+          prevRow['ended_at'] == null) {
         unlocked = false;
       } else {
         try {
@@ -374,11 +382,11 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
     final bool isLocked = !unlocked;
     final bool isAvailable = unlocked && !isCompleted;
     final String sessionId = currentRow?['session_id']?.toString() ?? '';
-    
+
     // Calculate lock reason and unlock date
     String lockReason = "";
     DateTime? unlockDate;
-    
+
     if (isLocked && sessionNumber > 1) {
       if (prevRow == null) {
         lockReason = "أكمل الجلسة ${sessionNumber - 1} أولاً";
@@ -390,7 +398,7 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
           unlockDate = endedAt.add(const Duration(days: 7));
           final daysLeft = unlockDate.difference(now).inDays;
           final hoursLeft = unlockDate.difference(now).inHours % 24;
-          
+
           if (daysLeft > 0) {
             lockReason = "ستُفتح بعد $daysLeft يوم";
           } else if (hoursLeft > 0) {
@@ -398,7 +406,7 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
           } else {
             lockReason = "ستُفتح قريباً";
           }
-          
+
           // Add the date
           final day = unlockDate.day;
           final month = _getArabicMonth(unlockDate.month);
@@ -412,12 +420,20 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (context, child) {
-        final pulseScale = isAvailable ? 1.0 + (_pulseController.value * 0.03) : 1.0;
-        
+        final pulseScale = isAvailable
+            ? 1.0 + (_pulseController.value * 0.03)
+            : 1.0;
+
         return Transform.scale(
           scale: pulseScale,
           child: GestureDetector(
-            onTap: () => _onSessionTap(context, sessionNumber, sessionId, isLocked, isCompleted),
+            onTap: () => _onSessionTap(
+              context,
+              sessionNumber,
+              sessionId,
+              isLocked,
+              isCompleted,
+            ),
             child: Container(
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
@@ -426,8 +442,12 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                   end: Alignment.centerLeft,
                   colors: isLocked
                       ? [
-                          AppStyle.isDark(context) ? Colors.white.withOpacity(0.05) : Colors.grey[100]!,
-                          AppStyle.isDark(context) ? Colors.white.withOpacity(0.03) : Colors.grey[50]!,
+                          AppStyle.isDark(context)
+                              ? Colors.white.withOpacity(0.05)
+                              : Colors.grey[100]!,
+                          AppStyle.isDark(context)
+                              ? Colors.white.withOpacity(0.03)
+                              : Colors.grey[50]!,
                         ]
                       : [
                           _sessionColor.withOpacity(isCompleted ? 0.15 : 0.9),
@@ -436,13 +456,18 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                 ),
                 borderRadius: BorderRadius.circular(20),
                 border: isCompleted
-                    ? Border.all(color: _sessionColor.withOpacity(0.3), width: 2)
+                    ? Border.all(
+                        color: _sessionColor.withOpacity(0.3),
+                        width: 2,
+                      )
                     : null,
                 boxShadow: isLocked
                     ? []
                     : [
                         BoxShadow(
-                          color: _sessionColor.withOpacity(isCompleted ? 0.1 : 0.3),
+                          color: _sessionColor.withOpacity(
+                            isCompleted ? 0.1 : 0.3,
+                          ),
                           blurRadius: 15,
                           offset: const Offset(0, 8),
                         ),
@@ -458,30 +483,36 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                       height: 56,
                       decoration: BoxDecoration(
                         color: isLocked
-                            ? (AppStyle.isDark(context) ? Colors.white10 : Colors.grey[200])
-                            : (isCompleted ? _sessionColor.withOpacity(0.2) : Colors.white.withOpacity(0.2)),
+                            ? (AppStyle.isDark(context)
+                                  ? Colors.white10
+                                  : Colors.grey[200])
+                            : (isCompleted
+                                  ? _sessionColor.withOpacity(0.2)
+                                  : Colors.white.withOpacity(0.2)),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: isLocked
                           ? Icon(
                               Icons.lock_outline,
-                              color: AppStyle.isDark(context) ? Colors.white30 : Colors.grey[400],
+                              color: AppStyle.isDark(context)
+                                  ? Colors.white30
+                                  : Colors.grey[400],
                               size: 24,
                             )
                           : isCompleted
-                              ? Icon(
-                                  Icons.check_circle,
-                                  color: _sessionColor,
-                                  size: 28,
-                                )
-                              : const Icon(
-                                  Icons.chat_bubble_rounded,
-                                  color: Colors.white,
-                                  size: 26,
-                                ),
+                          ? Icon(
+                              Icons.check_circle,
+                              color: _sessionColor,
+                              size: 28,
+                            )
+                          : const Icon(
+                              Icons.chat_bubble_rounded,
+                              color: Colors.white,
+                              size: 26,
+                            ),
                     ),
                     const SizedBox(width: 16),
-                    
+
                     // Content
                     Expanded(
                       child: Column(
@@ -495,14 +526,21 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: isLocked
-                                      ? (AppStyle.isDark(context) ? Colors.white38 : Colors.grey)
-                                      : (isCompleted ? AppStyle.textMain(context) : Colors.white),
+                                      ? (AppStyle.isDark(context)
+                                            ? Colors.white38
+                                            : Colors.grey)
+                                      : (isCompleted
+                                            ? AppStyle.textMain(context)
+                                            : Colors.white),
                                 ),
                               ),
                               const Spacer(),
                               if (isCompleted)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: _sessionColor.withOpacity(0.15),
                                     borderRadius: BorderRadius.circular(12),
@@ -518,7 +556,10 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                                 ),
                               if (isAvailable)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(12),
@@ -526,7 +567,11 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.play_arrow, color: Colors.white, size: 14),
+                                      const Icon(
+                                        Icons.play_arrow,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
                                         "ابدأ",
@@ -548,15 +593,21 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                                 Icon(
                                   Icons.schedule,
                                   size: 14,
-                                  color: AppStyle.isDark(context) ? Colors.white24 : Colors.grey[400],
+                                  color: AppStyle.isDark(context)
+                                      ? Colors.white24
+                                      : Colors.grey[400],
                                 ),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
-                                    lockReason.isNotEmpty ? lockReason : "أكمل الجلسة السابقة أولاً",
+                                    lockReason.isNotEmpty
+                                        ? lockReason
+                                        : "أكمل الجلسة السابقة أولاً",
                                     style: GoogleFonts.cairo(
                                       fontSize: 11,
-                                      color: AppStyle.isDark(context) ? Colors.white24 : Colors.grey[400],
+                                      color: AppStyle.isDark(context)
+                                          ? Colors.white24
+                                          : Colors.grey[400],
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -579,8 +630,18 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
 
   String _getArabicMonth(int month) {
     const months = [
-      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
     ];
     return months[month - 1];
   }
@@ -596,12 +657,14 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'هذه الجلسة لم تُفتح بعد. ستتوفر بعد إكمال الجلسة السابقة.',
+            'هذه الجلسة لم تُفتح بعد. ستتوفر بعد إكمال الجلسة السابقة بأسبوع.',
             style: GoogleFonts.cairo(),
           ),
           backgroundColor: AppStyle.primary,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       return;
@@ -616,7 +679,9 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
           ),
           backgroundColor: Colors.green[600],
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       return;
@@ -650,12 +715,20 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
               // Header
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                  horizontal: 20,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [AppStyle.primary, AppStyle.primary.withOpacity(0.8)],
+                    colors: [
+                      AppStyle.primary,
+                      AppStyle.primary.withOpacity(0.8),
+                    ],
                   ),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
                 ),
                 child: Column(
                   children: [
