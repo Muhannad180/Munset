@@ -89,7 +89,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           );
         }
       }
-    } catch (e, s) {
+    } catch (e) {
       _showMsg("حدث خطأ أثناء التسجيل", Colors.red);
     }
   }

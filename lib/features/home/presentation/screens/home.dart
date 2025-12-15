@@ -591,37 +591,39 @@ class HomePageState extends State<HomePage> {
     }
 
     // General / Default
-    if (random == 0)
+    if (random == 0) {
       return {
         'title': 'رتب محيطك',
         'body':
             'رتب مكان جلوسك أو سطح مكتبك لمدة 5 دقائق؛ التنظيم الخارجي يساعد في الهدوء الداخلي.',
       };
-    if (random == 1)
+    }
+    if (random == 1) {
       return {
         'title': 'شرب الماء',
         'body':
             'اشرب كوباً كبيراً من الماء ببطء. الجفاف يؤثر على التركيز والمزاج.',
       };
+    }
     return {
       'title': 'خطوة صغيرة',
       'body': 'اختر مهمة صغيرة جداً (تستغرق دقيقتين) وأنجزها الآن.',
     };
   }
 
-  Future<void> _getHabitAdvice(String itemId, String itemTitle) async {
-    if (loadingHabitAdvice[itemId] == true) return;
-    setState(() => loadingHabitAdvice[itemId] = true);
-    try {
-      String prompt = "أريد نصيحة قصيرة ومشجعة للالتزام بعادة: $itemTitle";
-      final advice = await _callAdviceApi(prompt);
-      if (advice != null && mounted) {
-        setState(() => habitAdvices[itemId] = advice);
-      }
-    } finally {
-      if (mounted) setState(() => loadingHabitAdvice[itemId] = false);
-    }
-  }
+  // Future<void> _getHabitAdvice(String itemId, String itemTitle) async {
+  //   if (loadingHabitAdvice[itemId] == true) return;
+  //   setState(() => loadingHabitAdvice[itemId] = true);
+  //   try {
+  //     String prompt = "أريد نصيحة قصيرة ومشجعة للالتزام بعادة: $itemTitle";
+  //     final advice = await _callAdviceApi(prompt);
+  //     if (advice != null && mounted) {
+  //       setState(() => habitAdvices[itemId] = advice);
+  //     }
+  //   } finally {
+  //     if (mounted) setState(() => loadingHabitAdvice[itemId] = false);
+  //   }
+  // }
 
   Future<String?> _callAdviceApi(String text) async {
     try {
@@ -651,8 +653,9 @@ class HomePageState extends State<HomePage> {
     final user = supabase.auth.currentUser;
     if (user == null) return;
     String fullDesc = desc;
-    if (feelingForAdvice.isNotEmpty)
+    if (feelingForAdvice.isNotEmpty) {
       fullDesc += "\n\n[مشاعر إضافية]: $feelingForAdvice";
+    }
     setState(() {
       latestJournal = {
         'mode': mood,
@@ -881,7 +884,8 @@ class HomePageState extends State<HomePage> {
     setState(() => loadingHabitAdvice[id] = true);
     try {
       // Using the same API call logic as HabitCard
-      const String apiUrl = 'https://munset-backend.onrender.com/habit-advice'; // Render
+      const String apiUrl =
+          'https://munset-backend.onrender.com/habit-advice'; // Render
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json'},
@@ -900,10 +904,11 @@ class HomePageState extends State<HomePage> {
         );
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
     } finally {
       if (mounted) setState(() => loadingHabitAdvice[id] = false);
     }

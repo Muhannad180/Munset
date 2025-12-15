@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:test1/features/assessment/presentation/screens/test_screen.dart';
-import 'package:test1/features/auth/presentation/screens/signin_screen.dart';
 import '../../../../core/theme/style.dart';
 
 class StartScreen extends StatelessWidget {

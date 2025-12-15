@@ -9,19 +9,17 @@ class TaskTile extends StatefulWidget {
   final Map<String, dynamic> task;
   final VoidCallback onToggle;
 
-  const TaskTile({
-    super.key,
-    required this.task,
-    required this.onToggle,
-  });
+  const TaskTile({super.key, required this.task, required this.onToggle});
 
   @override
   State<TaskTile> createState() => _TaskTileState();
 }
 
-class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin {
+class _TaskTileState extends State<TaskTile>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
+  // ignore: unused_field
   bool _isPressed = false;
   bool _isLoadingAdvice = false;
 
@@ -32,9 +30,10 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
       duration: const Duration(milliseconds: 150),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.98).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.98,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -46,19 +45,16 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
   Future<void> _fetchAndShowAdvice(BuildContext context) async {
     final title = TaskLibrary.getArabicTitle(widget.task);
     final description = TaskLibrary.getArabicDescription(widget.task) ?? '';
-    
+
     setState(() => _isLoadingAdvice = true);
 
     try {
       final url = Uri.parse('https://munset-backend.onrender.com/task-advice');
-      
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'task_name': title,
-          'task_description': description,
-        }),
+        body: jsonEncode({'task_name': title, 'task_description': description}),
       );
 
       if (!mounted) return;
@@ -106,7 +102,11 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                   color: Colors.amber.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.lightbulb, color: Colors.amber, size: 24),
+                child: const Icon(
+                  Icons.lightbulb,
+                  color: Colors.amber,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -161,7 +161,10 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 child: Text(
                   'حسناً',
                   style: GoogleFonts.cairo(
@@ -177,10 +180,14 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
     );
   }
 
-  void _showDetailsDialog(BuildContext context, String title, String description) {
+  void _showDetailsDialog(
+    BuildContext context,
+    String title,
+    String description,
+  ) {
     final categoryInfo = _getCategoryInfo(widget.task);
     final List<Color> gradientColors = categoryInfo['gradient'] as List<Color>;
-    
+
     showDialog(
       context: context,
       builder: (context) => Directionality(
@@ -198,7 +205,11 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                   gradient: LinearGradient(colors: gradientColors),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(categoryInfo['icon'] as IconData, color: Colors.white, size: 24),
+                child: Icon(
+                  categoryInfo['icon'] as IconData,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -219,7 +230,10 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: gradientColors[0].withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -255,7 +269,10 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 child: Text(
                   'حسناً',
                   style: GoogleFonts.cairo(
@@ -274,15 +291,29 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
   // Get category info based on task category or id
   Map<String, dynamic> _getCategoryInfo(Map<String, dynamic> task) {
     final String category = (task['category'] ?? '').toString().toLowerCase();
-    final String id = (task['id'] ?? task['task_id'] ?? '').toString().toLowerCase();
-    final String title = (task['title'] ?? task['task'] ?? task['task_name'] ?? '').toString().toLowerCase();
+    final String id = (task['id'] ?? task['task_id'] ?? '')
+        .toString()
+        .toLowerCase();
+    final String title =
+        (task['title'] ?? task['task'] ?? task['task_name'] ?? '')
+            .toString()
+            .toLowerCase();
 
     // ========== BREATHING & RELAXATION ==========
-    if (category.contains('relax') || category.contains('grounding') ||
-        id.contains('relax') || id.contains('grounding') || id.contains('breathing') ||
-        title.contains('تنفس') || title.contains('استرخاء') || title.contains('تأريض') ||
-        title.contains('breath') || title.contains('relax') || title.contains('grounding') ||
-        title.contains('calm') || title.contains('meditation') || title.contains('mindful')) {
+    if (category.contains('relax') ||
+        category.contains('grounding') ||
+        id.contains('relax') ||
+        id.contains('grounding') ||
+        id.contains('breathing') ||
+        title.contains('تنفس') ||
+        title.contains('استرخاء') ||
+        title.contains('تأريض') ||
+        title.contains('breath') ||
+        title.contains('relax') ||
+        title.contains('grounding') ||
+        title.contains('calm') ||
+        title.contains('meditation') ||
+        title.contains('mindful')) {
       return {
         'icon': Icons.air,
         'gradient': const [Color(0xFF4ECDC4), Color(0xFF2D9CDB)],
@@ -292,11 +323,20 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
     }
 
     // ========== THOUGHT CHALLENGES / COGNITIVE ==========
-    if (category.contains('thought') || category.contains('cognitive') ||
-        id.contains('thought') || id.contains('challenge') || id.contains('cognitive') ||
-        title.contains('سجل') || title.contains('أفكار') || title.contains('معرفي') ||
-        title.contains('thought') || title.contains('challenge') || title.contains('replace') ||
-        title.contains('cognitive') || title.contains('reframe') || title.contains('negative')) {
+    if (category.contains('thought') ||
+        category.contains('cognitive') ||
+        id.contains('thought') ||
+        id.contains('challenge') ||
+        id.contains('cognitive') ||
+        title.contains('سجل') ||
+        title.contains('أفكار') ||
+        title.contains('معرفي') ||
+        title.contains('thought') ||
+        title.contains('challenge') ||
+        title.contains('replace') ||
+        title.contains('cognitive') ||
+        title.contains('reframe') ||
+        title.contains('negative')) {
       return {
         'icon': Icons.psychology,
         'gradient': const [Color(0xFFA855F7), Color(0xFF7C3AED)],
@@ -306,11 +346,21 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
     }
 
     // ========== REFLECTION & JOURNALING ==========
-    if (category.contains('reflect') || category.contains('journal') || category.contains('record') ||
-        id.contains('reflect') || id.contains('journal') || id.contains('gratitude') ||
-        title.contains('تأمل') || title.contains('يوميات') || title.contains('امتنان') ||
-        title.contains('reflect') || title.contains('journal') || title.contains('daily') ||
-        title.contains('gratitude') || title.contains('write') || title.contains('log')) {
+    if (category.contains('reflect') ||
+        category.contains('journal') ||
+        category.contains('record') ||
+        id.contains('reflect') ||
+        id.contains('journal') ||
+        id.contains('gratitude') ||
+        title.contains('تأمل') ||
+        title.contains('يوميات') ||
+        title.contains('امتنان') ||
+        title.contains('reflect') ||
+        title.contains('journal') ||
+        title.contains('daily') ||
+        title.contains('gratitude') ||
+        title.contains('write') ||
+        title.contains('log')) {
       return {
         'icon': Icons.auto_stories,
         'gradient': const [Color(0xFF6366F1), Color(0xFF8B5CF6)],
@@ -320,10 +370,18 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
     }
 
     // ========== IDENTIFY / AWARENESS ==========
-    if (id.contains('identify') || id.contains('awareness') || id.contains('recognize') ||
-        title.contains('تعرف') || title.contains('حدد') || title.contains('وعي') ||
-        title.contains('identify') || title.contains('recognize') || title.contains('spot') ||
-        title.contains('notice') || title.contains('awareness') || title.contains('detect')) {
+    if (id.contains('identify') ||
+        id.contains('awareness') ||
+        id.contains('recognize') ||
+        title.contains('تعرف') ||
+        title.contains('حدد') ||
+        title.contains('وعي') ||
+        title.contains('identify') ||
+        title.contains('recognize') ||
+        title.contains('spot') ||
+        title.contains('notice') ||
+        title.contains('awareness') ||
+        title.contains('detect')) {
       return {
         'icon': Icons.search,
         'gradient': const [Color(0xFFEC4899), Color(0xFFF472B6)],
@@ -333,11 +391,19 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
     }
 
     // ========== BEHAVIORAL EXPERIMENT ==========
-    if (category.contains('behav') || category.contains('experiment') ||
-        id.contains('experiment') || id.contains('behavior') || id.contains('action') ||
-        title.contains('تجربة') || title.contains('سلوك') || title.contains('مواجهة') ||
-        title.contains('experiment') || title.contains('behavior') || title.contains('try') ||
-        title.contains('action') || title.contains('exposure')) {
+    if (category.contains('behav') ||
+        category.contains('experiment') ||
+        id.contains('experiment') ||
+        id.contains('behavior') ||
+        id.contains('action') ||
+        title.contains('تجربة') ||
+        title.contains('سلوك') ||
+        title.contains('مواجهة') ||
+        title.contains('experiment') ||
+        title.contains('behavior') ||
+        title.contains('try') ||
+        title.contains('action') ||
+        title.contains('exposure')) {
       return {
         'icon': Icons.science_outlined,
         'gradient': const [Color(0xFFF97316), Color(0xFFEAB308)],
@@ -347,11 +413,19 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
     }
 
     // ========== ACTIVITY SCHEDULING ==========
-    if (category.contains('activity') || category.contains('scheduling') ||
-        id.contains('activity') || id.contains('schedule') || id.contains('plan') ||
-        title.contains('جدولة') || title.contains('أنشطة') || title.contains('خطة') ||
-        title.contains('schedule') || title.contains('activity') || title.contains('plan') ||
-        title.contains('routine') || title.contains('habit')) {
+    if (category.contains('activity') ||
+        category.contains('scheduling') ||
+        id.contains('activity') ||
+        id.contains('schedule') ||
+        id.contains('plan') ||
+        title.contains('جدولة') ||
+        title.contains('أنشطة') ||
+        title.contains('خطة') ||
+        title.contains('schedule') ||
+        title.contains('activity') ||
+        title.contains('plan') ||
+        title.contains('routine') ||
+        title.contains('habit')) {
       return {
         'icon': Icons.calendar_month,
         'gradient': const [Color(0xFF10B981), Color(0xFF34D399)],
@@ -361,10 +435,17 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
     }
 
     // ========== EXERCISE & PHYSICAL ==========
-    if (id.contains('exercise') || id.contains('physical') || id.contains('walk') ||
-        title.contains('رياضة') || title.contains('تمارين') || title.contains('مشي') ||
-        title.contains('exercise') || title.contains('walk') || title.contains('physical') ||
-        title.contains('movement') || title.contains('stretch')) {
+    if (id.contains('exercise') ||
+        id.contains('physical') ||
+        id.contains('walk') ||
+        title.contains('رياضة') ||
+        title.contains('تمارين') ||
+        title.contains('مشي') ||
+        title.contains('exercise') ||
+        title.contains('walk') ||
+        title.contains('physical') ||
+        title.contains('movement') ||
+        title.contains('stretch')) {
       return {
         'icon': Icons.directions_run,
         'gradient': const [Color(0xFF14B8A6), Color(0xFF2DD4BF)],
@@ -374,9 +455,13 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
     }
 
     // ========== SLEEP ==========
-    if (id.contains('sleep') || id.contains('rest') ||
-        title.contains('نوم') || title.contains('راحة') ||
-        title.contains('sleep') || title.contains('rest') || title.contains('bedtime')) {
+    if (id.contains('sleep') ||
+        id.contains('rest') ||
+        title.contains('نوم') ||
+        title.contains('راحة') ||
+        title.contains('sleep') ||
+        title.contains('rest') ||
+        title.contains('bedtime')) {
       return {
         'icon': Icons.bedtime,
         'gradient': const [Color(0xFF6366F1), Color(0xFF818CF8)],
@@ -386,11 +471,20 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
     }
 
     // ========== SELF-COMPASSION ==========
-    if (category.contains('compassion') || category.contains('positive') || category.contains('self') ||
-        id.contains('compassion') || id.contains('strength') || id.contains('kindness') ||
-        title.contains('تعاطف') || title.contains('قوة') || title.contains('ذات') ||
-        title.contains('compassion') || title.contains('kind') || title.contains('strength') ||
-        title.contains('self-care') || title.contains('positive')) {
+    if (category.contains('compassion') ||
+        category.contains('positive') ||
+        category.contains('self') ||
+        id.contains('compassion') ||
+        id.contains('strength') ||
+        id.contains('kindness') ||
+        title.contains('تعاطف') ||
+        title.contains('قوة') ||
+        title.contains('ذات') ||
+        title.contains('compassion') ||
+        title.contains('kind') ||
+        title.contains('strength') ||
+        title.contains('self-care') ||
+        title.contains('positive')) {
       return {
         'icon': Icons.favorite,
         'gradient': const [Color(0xFFF43F5E), Color(0xFFE11D48)],
@@ -400,10 +494,16 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
     }
 
     // ========== SOCIAL / COMMUNICATION ==========
-    if (id.contains('social') || id.contains('communication') || id.contains('connect') ||
-        title.contains('اجتماعي') || title.contains('تواصل') ||
-        title.contains('social') || title.contains('connect') || title.contains('talk') ||
-        title.contains('communicate') || title.contains('relationship')) {
+    if (id.contains('social') ||
+        id.contains('communication') ||
+        id.contains('connect') ||
+        title.contains('اجتماعي') ||
+        title.contains('تواصل') ||
+        title.contains('social') ||
+        title.contains('connect') ||
+        title.contains('talk') ||
+        title.contains('communicate') ||
+        title.contains('relationship')) {
       return {
         'icon': Icons.people,
         'gradient': const [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
@@ -413,10 +513,16 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
     }
 
     // ========== ANGER / EMOTION MANAGEMENT ==========
-    if (id.contains('anger') || id.contains('emotion') || id.contains('feeling') ||
-        title.contains('غضب') || title.contains('مشاعر') ||
-        title.contains('anger') || title.contains('emotion') || title.contains('feeling') ||
-        title.contains('mood') || title.contains('frustrat')) {
+    if (id.contains('anger') ||
+        id.contains('emotion') ||
+        id.contains('feeling') ||
+        title.contains('غضب') ||
+        title.contains('مشاعر') ||
+        title.contains('anger') ||
+        title.contains('emotion') ||
+        title.contains('feeling') ||
+        title.contains('mood') ||
+        title.contains('frustrat')) {
       return {
         'icon': Icons.whatshot,
         'gradient': const [Color(0xFFEF4444), Color(0xFFF87171)],
@@ -426,10 +532,16 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
     }
 
     // ========== FEAR / ANXIETY ==========
-    if (id.contains('fear') || id.contains('anxiety') || id.contains('worry') ||
-        title.contains('خوف') || title.contains('قلق') ||
-        title.contains('fear') || title.contains('anxiety') || title.contains('worry') ||
-        title.contains('panic') || title.contains('nervous')) {
+    if (id.contains('fear') ||
+        id.contains('anxiety') ||
+        id.contains('worry') ||
+        title.contains('خوف') ||
+        title.contains('قلق') ||
+        title.contains('fear') ||
+        title.contains('anxiety') ||
+        title.contains('worry') ||
+        title.contains('panic') ||
+        title.contains('nervous')) {
       return {
         'icon': Icons.shield,
         'gradient': const [Color(0xFF8B5CF6), Color(0xFFA78BFA)],
@@ -479,12 +591,12 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     final task = widget.task;
     final isDone = task['is_completed'] == true;
-    
+
     // Use TaskLibrary to get Arabic title and description
     final title = TaskLibrary.getArabicTitle(task);
     final description = TaskLibrary.getArabicDescription(task) ?? '';
     final difficulty = TaskLibrary.getArabicDifficulty(task);
-    
+
     final categoryInfo = _getCategoryInfo(task);
     final difficultyInfo = _getDifficultyInfo(difficulty);
     final List<Color> gradientColors = categoryInfo['gradient'] as List<Color>;
@@ -510,9 +622,9 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
             color: isDone
-                ? (AppStyle.isDark(context) 
-                    ? Colors.white.withOpacity(0.03) 
-                    : Colors.grey[50])
+                ? (AppStyle.isDark(context)
+                      ? Colors.white.withOpacity(0.03)
+                      : Colors.grey[50])
                 : AppStyle.cardBg(context),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
@@ -552,7 +664,7 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                       ),
                     ),
                   ),
-                
+
                 // Main content
                 Padding(
                   padding: const EdgeInsets.all(16),
@@ -575,18 +687,18 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                                   ],
                                 ),
                           color: isDone
-                              ? (AppStyle.isDark(context) 
-                                  ? Colors.white10 
-                                  : Colors.grey[200])
+                              ? (AppStyle.isDark(context)
+                                    ? Colors.white10
+                                    : Colors.grey[200])
                               : null,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
                           categoryInfo['icon'] as IconData,
                           color: isDone
-                              ? (AppStyle.isDark(context) 
-                                  ? Colors.white38 
-                                  : Colors.grey)
+                              ? (AppStyle.isDark(context)
+                                    ? Colors.white38
+                                    : Colors.grey)
                               : gradientColors[0],
                           size: 26,
                         ),
@@ -606,16 +718,16 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                                     title,
                                     style: GoogleFonts.cairo(
                                       fontSize: 15,
-                                      fontWeight: isDone 
-                                          ? FontWeight.w500 
+                                      fontWeight: isDone
+                                          ? FontWeight.w500
                                           : FontWeight.bold,
                                       color: isDone
-                                          ? (AppStyle.isDark(context) 
-                                              ? Colors.white38 
-                                              : Colors.grey)
+                                          ? (AppStyle.isDark(context)
+                                                ? Colors.white38
+                                                : Colors.grey)
                                           : AppStyle.textMain(context),
-                                      decoration: isDone 
-                                          ? TextDecoration.lineThrough 
+                                      decoration: isDone
+                                          ? TextDecoration.lineThrough
                                           : null,
                                       decorationColor: gradientColors[0],
                                       height: 1.3,
@@ -652,7 +764,7 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  
+
                                   // Difficulty Badge
                                   if (difficulty.isNotEmpty)
                                     Container(
@@ -661,7 +773,8 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: difficultyInfo['bgColor'] as Color,
+                                        color:
+                                            difficultyInfo['bgColor'] as Color,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
@@ -669,25 +782,34 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                                         style: GoogleFonts.cairo(
                                           fontSize: 11,
                                           fontWeight: FontWeight.bold,
-                                          color: difficultyInfo['color'] as Color,
+                                          color:
+                                              difficultyInfo['color'] as Color,
                                         ),
                                       ),
                                     ),
-                                  
+
                                   const Spacer(),
-                                  
+
                                   // Details Button (if description exists)
                                   if (description.isNotEmpty) ...[
                                     GestureDetector(
-                                      onTap: () => _showDetailsDialog(context, title, description),
+                                      onTap: () => _showDetailsDialog(
+                                        context,
+                                        title,
+                                        description,
+                                      ),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 10,
                                           vertical: 4,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: gradientColors[0].withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(8),
+                                          color: gradientColors[0].withOpacity(
+                                            0.15,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -712,10 +834,12 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                                     ),
                                     const SizedBox(width: 8),
                                   ],
-                                  
+
                                   // Advice Button
                                   GestureDetector(
-                                    onTap: _isLoadingAdvice ? null : () => _fetchAndShowAdvice(context),
+                                    onTap: _isLoadingAdvice
+                                        ? null
+                                        : () => _fetchAndShowAdvice(context),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 10,
@@ -781,8 +905,8 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                           color: isDone ? null : Colors.transparent,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isDone 
-                                ? Colors.transparent 
+                            color: isDone
+                                ? Colors.transparent
                                 : gradientColors[0].withOpacity(0.5),
                             width: 2,
                           ),
