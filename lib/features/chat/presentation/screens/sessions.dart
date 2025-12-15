@@ -294,7 +294,7 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
                       children: List.generate(
                         8,
                         (i) => Container(
-                          margin: const EdgeInsets.only(left: 4),
+                          margin: const EdgeInsets.only(left: 2),
                           width: 24,
                           height: 6,
                           decoration: BoxDecoration(
