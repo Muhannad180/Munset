@@ -169,8 +169,23 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
         await _loadHistory(_sessionId.toString());
 
         // If no messages loaded (new session), show opening
-        if (messages.isEmpty && opening.isNotEmpty) {
-          _stopThinkingAndShowAi(opening);
+        if (messages.isEmpty) {
+          if (sNum == 1) {
+             // Hardcoded welcome for Session 1
+             _stopThinkingAndShowAi(
+               "مرحباً بك في رحلتك نحو صحة نفسية أفضل! 🌟\n\n"
+               "أنا معالجك الافتراضي، وسأكون معك في كل خطوة من هذه الرحلة العلاجية.\n\n"
+               "في هذه الجلسة الأولى، سنتعرف على بعضنا البعض وأفهم ما تمر به حالياً. لا تقلق، أنا هنا لمساعدتك.\n\n"
+               "هل يمكنك أن تخبرني قليلاً عن نفسك وما الذي جعلك تبحث عن الدعم النفسي؟"
+             );
+          } else if (opening.isNotEmpty) {
+             _stopThinkingAndShowAi(opening);
+          } else {
+             _thinkingTimer?.cancel();
+             _thinkingTimer = null;
+             _isAwaitingResponse = false;
+             if (mounted) setState(() { _thinkingMessage = null; });
+          }
         } else {
           // If messages loaded, just stop thinking indicator
           _thinkingTimer?.cancel();
@@ -240,6 +255,22 @@ class _ChatSessionPageState extends State<ChatSessionPage> {
 
         // Sort by createdAt descending (newest first) for DashChat
         loaded.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        // FORCE FIX: If Session 1, replace the *oldest* message (last in list) 
+        // if it is from AI, to ensure the correct welcome message is shown.
+        if ((widget.sessionNumber ?? 1) == 1 && loaded.isNotEmpty) {
+           final lastMsg = loaded.last;
+           if (lastMsg.user.id == aiUser.id) {
+             loaded.last = ChatMessage(
+               user: aiUser,
+               createdAt: lastMsg.createdAt,
+               text: "مرحباً بك في رحلتك نحو صحة نفسية أفضل! 🌟\n\n"
+                     "أنا معالجك الافتراضي، وسأكون معك في كل خطوة من هذه الرحلة العلاجية.\n\n"
+                     "في هذه الجلسة الأولى، سنتعرف على بعضنا البعض وأفهم ما تمر به حالياً. لا تقلق، أنا هنا لمساعدتك.\n\n"
+                     "هل يمكنك أن تخبرني قليلاً عن نفسك وما الذي جعلك تبحث عن الدعم النفسي؟",
+             );
+           }
+        }
 
         if (mounted) {
           setState(() {
