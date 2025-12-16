@@ -765,28 +765,7 @@ class _TaskTileState extends State<TaskTile>
                                   ),
                                   const SizedBox(width: 8),
 
-                                  // Difficulty Badge
-                                  if (difficulty.isNotEmpty)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            difficultyInfo['bgColor'] as Color,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        difficultyInfo['label'] as String,
-                                        style: GoogleFonts.cairo(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color:
-                                              difficultyInfo['color'] as Color,
-                                        ),
-                                      ),
-                                    ),
+                                  // Difficulty Badge removed
 
                                   const Spacer(),
 

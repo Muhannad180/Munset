@@ -698,7 +698,15 @@ class _SessionsState extends State<Sessions> with TickerProviderStateMixin {
           sessionNumber: sessionNumber,
         ),
       ),
-    );
+    ).then((result) {
+      // Refresh sessions list when returning from chat
+      // This handles both completed sessions and normal back navigation
+      if (mounted) {
+        setState(() {
+          _sessionsFuture = _fetchSessions();
+        });
+      }
+    });
   }
 
   void _showNoteDialog(BuildContext context) {
